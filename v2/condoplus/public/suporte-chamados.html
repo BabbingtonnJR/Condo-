@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Chamados</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// Marcel — fila de chamados do suporte (resolver / escalar)
+// é só config pra minha CrudPage
+new CrudPage({
+  tela: 'su_chamados',
+  titulo: 'Fila de chamados técnicos',
+  nomeSingular: 'chamado',
+  rotuloNovo: 'Abrir chamado',
+  recurso: '/chamados',
+  colunas: [  // o que aparece na tabela
+    { rotulo: 'Usuário', campo: 'usuario' },
+    { rotulo: 'Assunto', html: c => `${esc(c.assunto)}<div class="meta">aberto em ${fmt.dataHora(c.aberto_em)}</div>` },
+    { rotulo: 'Escalado', html: c => c.escalado ? '<span class="tag tag-late">Escalado</span>' : '—' },
+    { rotulo: 'Status', html: c => tag('solicitacao', c.status) },
+  ],
+  campos: [  // campos do form (o CampoFactory do Gabriel monta)
+    { nome: 'usuario', rotulo: 'Usuário que relatou', obrigatorio: true },
+    { nome: 'assunto', rotulo: 'Assunto', obrigatorio: true },
+    { nome: 'status', rotulo: 'Status', tipo: 'selecao',
+      opcoes: [['aberto', 'Aberto'], ['progresso', 'Em andamento'], ['concluido', 'Concluído']] },
+  ],
+  acoes: [  // botões a mais em cada linha
+    { rotulo: 'Resolver', mostrar: c => c.status !== 'concluido',
+      executar: async c => { await api.patch(`/chamados/${c.id}/resolver`); return 'Chamado resolvido.'; } },
+    { rotulo: 'Escalar', mostrar: c => c.status !== 'concluido' && !c.escalado,
+      executar: async c => { await api.patch(`/chamados/${c.id}/escalar`); return 'Chamado escalado para o nível superior.'; } },
+  ],
+  descricao: c => c.assunto,
+  vazio: 'Nenhum chamado registrado.',
+}).iniciar();
+</script>
+</body>
+</html>

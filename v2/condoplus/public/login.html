@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Entrar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="login-screen">
+  <div class="login-card">
+    <div class="login-brand"><span class="mark"></span><h1>Condo+</h1></div>
+    <p class="login-sub">Entre para acessar o seu condomínio.</p>
+
+    <div id="login-error" class="error-box" style="display:none;"></div>
+
+    <div class="field">
+      <label>E-mail</label>
+      <input id="login-email" type="email" placeholder="voce@exemplo.com" value="renata@condoplus.com">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input id="login-pass" type="password" placeholder="••••••••" value="renata123">
+    </div>
+    <button class="btn btn-primary btn-block" id="entrar-btn">Entrar</button>
+    <div class="login-links"><a href="recuperar-senha.html">Esqueci minha senha</a></div>
+
+    <div class="helper-note" style="margin-top:24px;">
+      <strong>Usuários de teste</strong> (cadastrados no seed do banco):<br>
+      renata@condoplus.com / renata123 — Morador (residencial)<br>
+      marcos@condoplus.com / marcos123 — Síndico (residencial)<br>
+      <strong>ana@condoplus.com / ana123</strong> — Síndico (comercial — vê "Estacionamento rotativo")<br>
+      <strong>renato@condoplus.com / renato123</strong> — Síndico (clube — vê "Convidados de evento")<br>
+      patricia@condoplus.com / patricia123 — Administradora<br>
+      jonas@condoplus.com / jonas123 — Porteiro<br>
+      carlos@condoplus.com / carlos123 — Prestador de Serviço<br>
+      bianca@condoplus.com / bianca123 — Suporte
+    </div>
+  </div>
+</div>
+
+<script src="assets/common.js"></script>
+<script>
+  // Marcel — login: manda email e senha pro /api/login (AuthController do Gabriel)
+  // e joga a pessoa pra primeira tela do perfil dela
+  async function fazerLogin(){
+    const email = document.getElementById('login-email').value.trim();
+    const senha = document.getElementById('login-pass').value;
+    const errBox = document.getElementById('login-error');
+    errBox.style.display = 'none';
+    try {
+      const { usuario } = await api.post('/login', { email, senha });
+      localStorage.setItem('condoplus_user', JSON.stringify(usuario));
+      window.location.href = FIRST_PAGE[usuario.perfil];
+    } catch (e) {
+      errBox.textContent = e.message;
+      errBox.style.display = 'block';
+    }
+  }
+  document.getElementById('entrar-btn').addEventListener('click', fazerLogin);
+  document.getElementById('login-pass').addEventListener('keydown', (e) => { if(e.key === 'Enter') fazerLogin(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Encomendas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// Marcel — CRUD de encomendas (tabela encomendas). tem o botão "Registrar retirada"
+// é só config pra minha CrudPage
+new CrudPage({
+  tela: 'p_encomendas',
+  titulo: 'Encomendas',
+  nomeSingular: 'encomenda',
+  rotuloNovo: 'Registrar encomenda',
+  recurso: '/encomendas',
+  filtros: p => ({ condominio_id: p.usuario.condominio_id }),  // só pega o que é do meu condomínio
+  fixos:   p => ({ condominio_id: p.usuario.condominio_id }),
+  descricao: e => `${e.descricao || 'encomenda'} de ${e.morador}`,
+  cabecalho: (itens) => `<div class="grid-2">
+      <div class="panel stat"><div class="num">${itens.filter(e => !e.retirado).length}</div><div class="lbl">Aguardando retirada</div></div>
+      <div class="panel stat"><div class="num">${itens.filter(e => e.retirado).length}</div><div class="lbl">Já retiradas</div></div>
+    </div>`,
+  colunas: p => [  // o que aparece na tabela
+    { rotulo: 'Morador', html: e => `${esc(e.morador)}<div class="meta">${esc(e.descricao || '')}</div>` },
+    { rotulo: labelUnidade(p.usuario), campo: 'unidade' },
+    { rotulo: 'Recebida em', html: e => fmt.dataHora(e.recebido_em) },
+    { rotulo: 'Situação', html: e => tag('encomenda', e.retirado) },
+  ],
+  campos: p => [  // campos do form (o CampoFactory do Gabriel monta)
+    { nome: 'morador', rotulo: 'Morador', obrigatorio: true },
+    { nome: 'unidade', rotulo: labelUnidade(p.usuario), obrigatorio: true },
+    { nome: 'descricao', rotulo: 'Descrição', placeholder: 'Ex: Caixa média — Correios' },
+  ],
+  acoes: [  // botões a mais em cada linha
+    { rotulo: 'Registrar retirada', mostrar: e => !e.retirado,
+      executar: async e => { await api.patch(`/encomendas/${e.id}/retirar`); return 'Retirada registrada.'; } },
+  ],
+  vazio: 'Nenhuma encomenda registrada.',
+}).iniciar();
+</script>
+</body>
+</html>
