@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Financeiro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// André — morador vê os boletos da unidade dele
+// filha da BasePage do Marcel, só fiz o carregarDados e o renderizarConteudo
+class FinanceiroMorador extends BasePage {
+  titulo(){ return `Financeiro — ${labelUnidade(this.usuario)} ${this.usuario.unidade}`; }
+  carregarDados(){  // pega os dados na API
+    const u = this.usuario;
+    return api.get(`/financeiro?condominio_id=${u.condominio_id}&unidade=${encodeURIComponent(u.unidade)}`);
+  }
+  renderizarConteudo(lancamentos){  // monta o HTML da tela
+    return `<div class="panel"><div class="table-wrap"><table>
+      <thead><tr><th>Referência</th><th>Valor</th><th>Vencimento</th><th>Situação</th></tr></thead>
+      <tbody>
+        ${lancamentos.map(l => `<tr>
+            <td>${esc(l.referencia)}</td><td>${fmt.moeda(l.valor)}</td><td>${fmt.data(l.vencimento)}</td>
+            <td>${tag('lancamento', l.vencido ? 'vencido' : l.status)}</td>
+          </tr>`).join('') || '<tr><td colspan="4"><div class="empty">Nenhum lançamento encontrado.</div></td></tr>'}
+      </tbody>
+    </table></div></div>`;
+  }
+}
+new FinanceiroMorador('m_financeiro').iniciar();
+</script>
+</body>
+</html>

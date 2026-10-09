@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Financeiro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// André — CRUD de boletos (tabela financeiro). tem o botão "Marcar como pago"
+// é só config pra CrudPage do Marcel
+new CrudPage({
+  tela: 's_financeiro',
+  titulo: 'Financeiro',
+  nomeSingular: 'lançamento',
+  rotuloNovo: 'Lançar cobrança',
+  recurso: '/financeiro',
+  filtros: p => ({ condominio_id: p.usuario.condominio_id }),  // só pega o que é do meu condomínio
+  fixos:   p => ({ condominio_id: p.usuario.condominio_id }),
+  descricao: l => `${l.referencia} — ${l.unidade}`,
+  cabecalho: (itens) => {
+    const soma = lista => fmt.moeda(lista.reduce((a, l) => a + l.valor, 0));
+    const pagos = itens.filter(l => l.status === 'pago');
+    const pendentes = itens.filter(l => l.status === 'pendente');
+    const vencidos = itens.filter(l => l.vencido);
+    return `<div class="grid-3">
+      <div class="panel stat"><div class="num">${soma(pagos)}</div><div class="lbl">Recebido (${pagos.length})</div></div>
+      <div class="panel stat"><div class="num">${soma(pendentes)}</div><div class="lbl">A receber (${pendentes.length})</div></div>
+      <div class="panel stat"><div class="num">${vencidos.length}</div><div class="lbl">Boletos vencidos</div></div>
+    </div>`;
+  },
+  colunas: p => [  // o que aparece na tabela
+    { rotulo: labelUnidade(p.usuario), campo: 'unidade' },
+    { rotulo: 'Referência', campo: 'referencia' },
+    { rotulo: 'Valor', html: l => fmt.moeda(l.valor) },
+    { rotulo: 'Vencimento', html: l => fmt.data(l.vencimento) },
+    { rotulo: 'Situação', html: l => tag('lancamento', l.vencido ? 'vencido' : l.status) },
+  ],
+  campos: p => [  // campos do form (o CampoFactory do Gabriel monta)
+    { nome: 'unidade', rotulo: labelUnidade(p.usuario), obrigatorio: true },
+    { nome: 'referencia', rotulo: 'Referência', obrigatorio: true, placeholder: 'Ex: Outubro/2026' },
+    { nome: 'valor', rotulo: 'Valor (R$)', tipo: 'numero', passo: '0.01', minimo: 0, obrigatorio: true },
+    { nome: 'vencimento', rotulo: 'Vencimento', tipo: 'data', obrigatorio: true },
+    { nome: 'status', rotulo: 'Situação', tipo: 'selecao', opcoes: [['pendente', 'Pendente'], ['pago', 'Pago']] },
+  ],
+  acoes: [  // botões a mais em cada linha
+    { rotulo: 'Marcar como pago', mostrar: l => l.status === 'pendente',
+      executar: async l => { await api.patch(`/financeiro/${l.id}/pagar`); return 'Pagamento registrado.'; } },
+  ],
+  vazio: 'Nenhum lançamento cadastrado.',
+}).iniciar();
+</script>
+</body>
+</html>
