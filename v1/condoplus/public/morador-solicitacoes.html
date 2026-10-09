@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Solicitações</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+new CrudPage({
+  tela: 'm_solicitacoes',
+  titulo: 'Minhas solicitações',
+  nomeSingular: 'solicitação',
+  rotuloNovo: 'Nova solicitação',
+  recurso: '/solicitacoes',
+  filtros: p => ({ condominio_id: p.usuario.condominio_id, unidade: p.usuario.unidade }),
+  fixos:   p => ({ condominio_id: p.usuario.condominio_id, unidade: p.usuario.unidade }),
+  ajuda: 'Você pode editar ou excluir uma solicitação enquanto ela estiver <strong>aberta</strong>. Depois que o síndico começa a tratar, ela fica só para acompanhamento.',
+  colunas: [
+    { rotulo: 'Solicitação', campo: 'titulo' },
+    { rotulo: 'Categoria', campo: 'categoria' },
+    { rotulo: 'Aberta em', html: s => fmt.data(s.criado_em) },
+    { rotulo: 'Status', html: s => tag('solicitacao', s.status) },
+  ],
+  campos: [
+    { nome: 'categoria', rotulo: 'Categoria', tipo: 'selecao', opcoes: ['Manutenção', 'Ocorrência', 'Outro'] },
+    { nome: 'titulo', rotulo: 'O que precisa de atenção?', obrigatorio: true, placeholder: 'Ex: Torneira vazando' },
+  ],
+  podeEditar: s => s.status === 'aberto',
+  podeExcluir: s => s.status === 'aberto',
+  vazio: 'Nenhuma solicitação aberta.',
+}).iniciar();
+</script>
+</body>
+</html>

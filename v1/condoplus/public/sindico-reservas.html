@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Reservas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+new CrudPage({
+  tela: 's_reservas',
+  titulo: 'Reservas de área comum',
+  recurso: '/reservas',
+  permitirCriar: false,
+  podeEditar: () => false,
+  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
+  descricao: r => `${r.area} em ${fmt.data(r.data_reserva)}`,
+  ajuda: 'Este menu só aparece para condomínios com o módulo <strong>reservas de área comum</strong> ligado. Em um condomínio comercial (sem salão de festas ou churrasqueira), ele nem existe.',
+  colunas: [
+    { rotulo: 'Área', campo: 'area' },
+    { rotulo: 'Data', html: r => `${fmt.data(r.data_reserva)} <div class="meta">${esc(r.hora)}</div>` },
+    { rotulo: 'Reservado por', campo: 'morador' },
+    { rotulo: 'Status', html: r => tag('reserva', r.status) },
+  ],
+  acoes: [
+    { rotulo: 'Confirmar', mostrar: r => r.status === 'pendente',
+      executar: async r => { await api.patch(`/reservas/${r.id}/confirmar`); return 'Reserva confirmada.'; } },
+    { rotulo: 'Recusar', mostrar: r => r.status === 'pendente', confirmar: 'Recusar (cancelar) esta reserva?',
+      executar: async r => { await api.patch(`/reservas/${r.id}/cancelar`); return 'Reserva recusada.'; } },
+  ],
+  vazio: 'Nenhuma reserva registrada.',
+}).iniciar();
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Encomendas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+class EncomendasMorador extends BasePage {
+  titulo(){ return 'Minhas encomendas'; }
+  carregarDados(){
+    const u = this.usuario;
+    return api.get(`/encomendas?condominio_id=${u.condominio_id}&unidade=${encodeURIComponent(u.unidade)}`);
+  }
+  renderizarConteudo(encomendas){
+    return `<div class="panel">
+      ${encomendas.map(e => `
+        <div class="list-item">
+          <div><div style="font-weight:500;">${esc(e.descricao || 'Encomenda recebida na portaria')}</div>
+               <div class="meta">Registrada em ${fmt.dataHora(e.recebido_em)}</div></div>
+          <div>${tag('encomenda', e.retirado)}</div>
+        </div>`).join('') || '<div class="empty"><span class="big">📦</span>Nenhuma encomenda registrada.</div>'}
+    </div>`;
+  }
+}
+new EncomendasMorador('m_encomendas').iniciar();
+</script>
+</body>
+</html>

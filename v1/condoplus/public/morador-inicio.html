@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Início</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+class InicioMorador extends BasePage {
+  titulo(){ return `Olá, ${this.usuario.nome.split(' ')[0]}`; }
+  subtitulo(){
+    const u = this.usuario;
+    return `${esc(u.condominio_nome || '')} · ${esc(labelUnidade(u))} ${esc(u.unidade || '')}`;
+  }
+
+  async carregarDados(){
+    const u = this.usuario;
+    const filtro = `condominio_id=${u.condominio_id}&unidade=${encodeURIComponent(u.unidade)}`;
+    const [solicitacoes, comunicados, encomendas, financeiro] = await Promise.all([
+      api.get('/solicitacoes?' + filtro),
+      api.get('/comunicados?condominio_id=' + u.condominio_id),
+      api.get('/encomendas?' + filtro),
+      api.get('/financeiro?' + filtro),
+    ]);
+    return { solicitacoes, comunicados, encomendas, financeiro };
+  }
+
+  renderizarConteudo(d){
+    const abertas = d.solicitacoes.filter(s => s.status !== 'concluido').length;
+    const aguardando = d.encomendas.filter(e => !e.retirado).length;
+    const pendentes = d.financeiro.filter(l => l.status === 'pendente');
+    return `
+      <div class="grid-3">
+        <div class="panel stat"><div class="num">${abertas}</div><div class="lbl">Solicitações em aberto</div></div>
+        <div class="panel stat"><div class="num">${aguardando}</div><div class="lbl">Encomendas aguardando retirada</div></div>
+        <div class="panel stat"><div class="num">${pendentes.length}</div><div class="lbl">Boletos pendentes (${fmt.moeda(pendentes.reduce((a, l) => a + l.valor, 0))})</div></div>
+      </div>
+      <div class="panel">
+        <h3>Últimos comunicados</h3>
+        ${d.comunicados.slice(0, 3).map(c => `
+          <div class="list-item"><div><div>${esc(c.titulo)}</div><div class="meta">${fmt.data(c.publicado_em)}</div></div></div>
+        `).join('') || '<div class="empty">Nenhum comunicado ainda.</div>'}
+        <div style="margin-top:10px;"><a class="btn btn-ghost btn-sm" href="morador-comunicados.html">Ver todos</a></div>
+      </div>`;
+  }
+}
+new InicioMorador('m_home').iniciar();
+</script>
+</body>
+</html>

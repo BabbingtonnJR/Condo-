@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Minhas solicitações</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+new CrudPage({
+  tela: 'pr_solicitacoes',
+  titulo: 'Solicitações atribuídas a você',
+  recurso: '/solicitacoes',
+  permitirCriar: false,
+  podeEditar: () => false,
+  podeExcluir: () => false,
+  filtros: p => ({ prestador_nome: p.usuario.nome }),
+  colunas: [
+    { rotulo: 'Serviço', html: s => `${esc(s.titulo)}<div class="meta">${esc(s.categoria)} · aberta em ${fmt.data(s.criado_em)}</div>` },
+    { rotulo: 'Unidade', campo: 'unidade' },
+    { rotulo: 'Status', html: s => tag('solicitacao', s.status) },
+  ],
+  acoes: [
+    { rotulo: 'Iniciar atendimento', mostrar: s => s.status === 'aberto',
+      executar: async s => { await api.put(`/solicitacoes/${s.id}`, { status: 'progresso' }); return 'Atendimento iniciado.'; } },
+    { rotulo: 'Marcar como resolvido', mostrar: s => s.status !== 'concluido',
+      executar: async s => { await api.put(`/solicitacoes/${s.id}`, { status: 'concluido' }); return 'Serviço marcado como resolvido.'; } },
+  ],
+  vazio: 'Nenhuma solicitação atribuída a você no momento.',
+}).iniciar();
+</script>
+</body>
+</html>

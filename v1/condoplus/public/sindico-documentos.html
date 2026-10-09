@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Documentos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// Integrante 2 — CRUD de documentos (tabela: documentos)
+new CrudPage({
+  tela: 's_documentos',
+  titulo: 'Documentos do condomínio',
+  nomeSingular: 'documento',
+  rotuloNovo: 'Publicar documento',
+  recurso: '/documentos',
+  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
+  fixos:   p => ({ condominio_id: p.usuario.condominio_id }),
+  ajuda: 'Atas, regimento e prestação de contas publicados aqui aparecem na tela <strong>Documentos</strong> de todos os moradores.',
+  colunas: [
+    { rotulo: 'Documento', campo: 'nome' },
+    { rotulo: 'Tipo', campo: 'tipo' },
+    { rotulo: 'Publicado em', html: d => fmt.data(d.publicado_em) },
+  ],
+  campos: [
+    { nome: 'nome', rotulo: 'Nome do documento', obrigatorio: true, placeholder: 'Ex: Ata da Assembleia - Setembro 2026' },
+    { nome: 'tipo', rotulo: 'Tipo de arquivo', tipo: 'selecao', opcoes: ['PDF', 'DOCX', 'XLSX', 'Imagem', 'Outro'] },
+  ],
+  vazio: 'Nenhum documento publicado.',
+}).iniciar();
+</script>
+</body>
+</html>

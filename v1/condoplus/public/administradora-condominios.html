@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Condomínios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// Integrante 4 — CRUD de condomínios (tabela: condominios)
+const NOMES_MODULOS = {
+  reservas_area_comum: 'Reservas', estacionamento_rotativo: 'Estacionamento rotativo',
+  controle_convidados_evento: 'Convidados de evento',
+};
+
+new CrudPage({
+  tela: 'a_condominios',
+  titulo: 'Condomínios',
+  nomeSingular: 'condomínio',
+  recurso: '/condominios',
+  ajuda: `Ao cadastrar, o <strong>tipo de cliente</strong> escolhido define quais módulos já vêm ligados e quais nomes as telas usam
+    (Factory Method no back-end: <code>ResidencialCreator</code>, <code>ComercialCreator</code>, <code>ClubeCreator</code>).
+    O tipo não muda depois do cadastro; os módulos podem ser ajustados em <a href="administradora-modulos.html"><u>Módulos por condomínio</u></a>.`,
+  colunas: [
+    { rotulo: 'Condomínio', html: c => `<div style="font-weight:500;">${esc(c.nome)}</div><div class="meta">${esc(c.endereco || '')}</div>` },
+    { rotulo: 'Tipo', html: c => `<span class="tag tag-progress">${esc(c.tipo)}</span><div class="meta">trata pessoas como "${esc(c.rotulos.pessoas)}"</div>` },
+    { rotulo: 'Unidades', campo: 'unidades' },
+    { rotulo: 'Síndico', html: c => esc(c.sindico_nome || '—') },
+    { rotulo: 'Módulos ativos', html: c => {
+        const ativos = Object.keys(c.modulos).filter(k => c.modulos[k]).map(k => NOMES_MODULOS[k] || k);
+        return esc(ativos.join(', ') || 'nenhum');
+      } },
+  ],
+  campos: [
+    { nome: 'nome', rotulo: 'Nome do condomínio', obrigatorio: true },
+    { nome: 'endereco', rotulo: 'Endereço' },
+    { nome: 'tipo', rotulo: 'Tipo de cliente', tipo: 'selecao', somenteNaCriacao: true,
+      opcoes: [['residencial', 'Residencial'], ['comercial', 'Comercial (escritórios)'], ['clube', 'Clube recreativo']],
+      dica: 'Define os módulos padrão e os nomes usados nas telas.' },
+    { nome: 'unidades', rotulo: 'Nº de unidades', tipo: 'numero', minimo: 0 },
+    { nome: 'sindico_nome', rotulo: 'Síndico responsável' },
+  ],
+  vazio: 'Nenhum condomínio cadastrado.',
+}).iniciar();
+</script>
+</body>
+</html>

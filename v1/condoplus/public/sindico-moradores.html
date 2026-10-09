@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Moradores</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// Integrante 1 — CRUD de moradores (tabela: moradores)
+new CrudPage({
+  tela: 's_moradores',
+  titulo: p => labelMorador(p.usuario),                 // "Moradores" / "Colaboradores" / "Sócios"
+  nomeSingular: p => rotulos(p.usuario).pessoa,
+  recurso: '/moradores',
+  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
+  fixos:   p => ({ condominio_id: p.usuario.condominio_id }),
+  ajuda: p => `CRUD completo (RF04) gravando na tabela <code>moradores</code>. A mesma tela atende os três tipos de cliente:
+    aqui ela se chama <strong>${esc(labelMorador(p.usuario))}</strong> e o campo de unidade se chama
+    <strong>${esc(labelUnidade(p.usuario))}</strong> — os rótulos vêm do tipo do condomínio.`,
+  colunas: p => [
+    { rotulo: 'Nome', campo: 'nome' },
+    { rotulo: labelUnidade(p.usuario), campo: 'unidade' },
+    { rotulo: 'E-mail', campo: 'email' },
+    { rotulo: 'Status', html: m => tag('ativo', m.status) },
+  ],
+  campos: p => [
+    { nome: 'nome', rotulo: 'Nome completo', obrigatorio: true },
+    { nome: 'unidade', rotulo: labelUnidade(p.usuario), obrigatorio: true },
+    { nome: 'email', rotulo: 'E-mail', tipo: 'email', obrigatorio: true },
+  ],
+  acoes: [
+    { rotulo: m => m.status === 'ativo' ? 'Desativar' : 'Reativar',
+      executar: async m => {
+        const { status } = await api.patch(`/moradores/${m.id}/status`);
+        return status === 'ativo' ? 'Cadastro reativado.' : 'Cadastro desativado.';
+      } },
+  ],
+}).iniciar();
+</script>
+</body>
+</html>

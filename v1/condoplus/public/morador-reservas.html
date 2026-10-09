@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Reservas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+const minhaReserva = (r, p) => r.morador === `${p.usuario.nome} (${p.usuario.unidade})`;
+
+new CrudPage({
+  tela: 'm_reservas',
+  titulo: 'Reservas de área comum',
+  nomeSingular: 'reserva',
+  rotuloNovo: 'Nova reserva',
+  recurso: '/reservas',
+  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
+  fixos:   p => ({ condominio_id: p.usuario.condominio_id, morador: `${p.usuario.nome} (${p.usuario.unidade})` }),
+  ajuda: 'Veja as datas já ocupadas antes de reservar. O síndico confirma cada pedido; enquanto estiver pendente, você pode editar ou cancelar a sua reserva.',
+  colunas: [
+    { rotulo: 'Área', campo: 'area' },
+    { rotulo: 'Data', html: r => `${fmt.data(r.data_reserva)} <div class="meta">${esc(r.hora)}</div>` },
+    { rotulo: 'Reservado por', campo: 'morador' },
+    { rotulo: 'Status', html: r => tag('reserva', r.status) },
+  ],
+  campos: [
+    { nome: 'area', rotulo: 'Área', tipo: 'selecao', opcoes: ['Salão de festas', 'Churrasqueira', 'Quadra poliesportiva', 'Quadra de tênis'] },
+    { nome: 'data_reserva', rotulo: 'Data', tipo: 'data', obrigatorio: true },
+    { nome: 'hora', rotulo: 'Horário', placeholder: 'Ex: 19h–23h' },
+  ],
+  acoes: [
+    { rotulo: 'Cancelar', perigo: true, confirmar: 'Cancelar esta reserva?',
+      mostrar: (r, p) => minhaReserva(r, p) && r.status !== 'cancelada',
+      executar: async r => { await api.patch(`/reservas/${r.id}/cancelar`); return 'Reserva cancelada.'; } },
+  ],
+  podeEditar: (r, p) => minhaReserva(r, p) && r.status === 'pendente',
+  podeExcluir: () => false,
+  vazio: 'Nenhuma reserva registrada.',
+}).iniciar();
+</script>
+</body>
+</html>
