@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Painel administrativo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// Gabriel — painel com os números de todos os condomínios
+// filha da BasePage do Marcel, só fiz o carregarDados e o renderizarConteudo
+class PainelAdministradora extends BasePage {
+  titulo(){ return 'Painel administrativo'; }
+  async carregarDados(){  // pega os dados na API
+    const [condominios, solicitacoes, usuarios] = await Promise.all([
+      api.get('/condominios'), api.get('/solicitacoes'), api.get('/usuarios'),
+    ]);
+    return { condominios, solicitacoes, usuarios };
+  }
+  renderizarConteudo(d){  // monta o HTML da tela
+    return `
+      <div class="grid-3">
+        <div class="panel stat"><div class="num">${d.condominios.length}</div><div class="lbl">Condomínios administrados</div></div>
+        <div class="panel stat"><div class="num">${d.condominios.reduce((a, c) => a + c.unidades, 0)}</div><div class="lbl">Unidades sob gestão</div></div>
+        <div class="panel stat"><div class="num">${d.solicitacoes.filter(s => s.status !== 'concluido').length}</div><div class="lbl">Solicitações abertas (geral)</div></div>
+      </div>
+      <div class="panel">
+        <h3>Visão geral por condomínio</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Condomínio</th><th>Tipo</th><th>Síndico</th><th>Unidades</th><th>Usuários</th></tr></thead>
+          <tbody>${d.condominios.map(c => `<tr>
+            <td>${esc(c.nome)}</td><td><span class="tag tag-progress">${esc(c.tipo)}</span></td>
+            <td>${esc(c.sindico_nome || '—')}</td><td>${c.unidades}</td>
+            <td>${d.usuarios.filter(u => u.condominio_id === c.id).length}</td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>`;
+  }
+}
+new PainelAdministradora('a_painel').iniciar();
+</script>
+</body>
+</html>

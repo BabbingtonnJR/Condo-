@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Módulos por condomínio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .switch{position:relative;display:inline-block;width:38px;height:21px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{position:absolute;cursor:pointer;inset:0;background:#D5D9C8;transition:.15s;border-radius:20px;}
+  .slider:before{position:absolute;content:"";height:15px;width:15px;left:3px;bottom:3px;background:white;transition:.15s;border-radius:50%;}
+  input:checked + .slider{background:var(--green);}
+  input:checked + .slider:before{transform:translateX(17px);}
+  input:focus-visible + .slider{outline:2px solid var(--ochre);outline-offset:2px;}
+  .modulo-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid #EDEFE4;}
+  .modulo-row:last-child{border-bottom:none;}
+  .modulo-row .desc{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+</style>
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// Gabriel — liga/desliga módulos por condomínio (variabilidade)
+// filha da BasePage do Marcel, só fiz o carregarDados e o renderizarConteudo
+const MODULOS_INFO = {
+  reservas_area_comum: { label: 'Reservas de área comum', desc: 'Salão de festas, churrasqueira, quadra — típico de residenciais e clubes.' },
+  estacionamento_rotativo: { label: 'Estacionamento rotativo', desc: 'Vagas compartilhadas, reservadas dia a dia — típico de prédios comerciais.' },
+  controle_convidados_evento: { label: 'Controle de convidados por evento', desc: 'Lista de convidados e registro de entrada em eventos — típico de clubes.' },
+};
+
+class ModulosAdministradora extends BasePage {
+  titulo(){ return 'Módulos por condomínio'; }
+  carregarDados(){ return api.get('/condominios'); }  // pega os dados na API
+
+  renderizarConteudo(condominios){  // monta o HTML da tela
+    return `
+      <div class="helper-note">
+        Esta tela materializa a <strong>alta variabilidade</strong>: em vez de um software diferente para cada cliente,
+        a administradora liga e desliga módulos por condomínio. O menu do síndico e dos moradores muda na próxima tela
+        que eles abrirem — sem alterar código.
+      </div>
+      ${condominios.map(c => `
+        <div class="panel">
+          <h3>${esc(c.nome)} <span class="tag tag-progress" style="margin-left:6px;">${esc(c.tipo)}</span></h3>
+          ${Object.keys(MODULOS_INFO).map(chave => `
+            <div class="modulo-row">
+              <div>
+                <div style="font-weight:500;">${MODULOS_INFO[chave].label}</div>
+                <div class="desc">${MODULOS_INFO[chave].desc}</div>
+              </div>
+              <label class="switch" aria-label="${MODULOS_INFO[chave].label} — ${esc(c.nome)}">
+                <input type="checkbox" ${c.modulos[chave] ? 'checked' : ''} onchange="pagina.alternar(${c.id}, '${chave}', this.checked)">
+                <span class="slider"></span>
+              </label>
+            </div>`).join('')}
+        </div>`).join('')}`;
+  }
+
+  async alternar(condominioId, modulo, ativo){
+    try {
+      await api.patch(`/condominios/${condominioId}/modulos`, { modulo, ativo });
+      toast(`${MODULOS_INFO[modulo].label}: ${ativo ? 'ligado' : 'desligado'}.`);
+    } catch(e) {
+      toast(e.message);
+      await this.recarregar();
+    }
+  }
+}
+new ModulosAdministradora('a_modulos').iniciar();
+</script>
+</body>
+</html>

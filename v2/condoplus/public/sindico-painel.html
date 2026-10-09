@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Painel do síndico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// Gabriel — painel do síndico. o 3º número muda conforme os módulos ligados (variabilidade)
+// filha da BasePage do Marcel, só fiz o carregarDados e o renderizarConteudo
+class PainelSindico extends BasePage {
+  titulo(){ return 'Painel do síndico'; }
+  subtitulo(){
+    const u = this.usuario;
+    return `${esc(u.condominio_nome || '')} · <span class="tag tag-progress">${esc(u.condominio_tipo || '')}</span>`;
+  }
+
+  async carregarDados(){  // pega os dados na API
+    const u = this.usuario, c = u.condominio_id, modulos = modulosDe(u);
+    const [solicitacoes, moradores, financeiro] = await Promise.all([
+      api.get('/solicitacoes?condominio_id=' + c),
+      api.get('/moradores?condominio_id=' + c),
+      api.get('/financeiro?condominio_id=' + c),
+    ]);
+    let destaque;  // o 3º número muda conforme os módulos ligados
+    if(modulos.estacionamento_rotativo){
+      const vagas = await api.get(`/vagas?condominio_id=${c}&data_reserva=${fmt.hoje()}`);
+      destaque = { num: `${vagas.filter(v => !v.reservado_por).length}/${vagas.length}`, lbl: 'Vagas livres hoje' };
+    } else if(modulos.controle_convidados_evento){
+      const convidados = await api.get('/convidados?condominio_id=' + c);
+      destaque = { num: convidados.filter(x => x.status !== 'presente').length, lbl: 'Convidados aguardados' };
+    } else if(modulos.reservas_area_comum){
+      const reservas = await api.get('/reservas?condominio_id=' + c + '&status=pendente');
+      destaque = { num: reservas.length, lbl: 'Reservas aguardando confirmação' };
+    } else {
+      destaque = { num: financeiro.filter(l => l.vencido).length, lbl: 'Boletos vencidos' };
+    }
+    return { solicitacoes, moradores, destaque };
+  }
+
+  renderizarConteudo(d){  // monta o HTML da tela
+    const recentes = d.solicitacoes.slice(0, 5);
+    return `
+      <div class="grid-3">
+        <div class="panel stat"><div class="num">${d.solicitacoes.filter(s => s.status !== 'concluido').length}</div><div class="lbl">Solicitações em aberto</div></div>
+        <div class="panel stat"><div class="num">${d.moradores.filter(m => m.status === 'ativo').length}</div><div class="lbl">${esc(labelMorador(this.usuario))} ativos</div></div>
+        <div class="panel stat"><div class="num">${esc(d.destaque.num)}</div><div class="lbl">${esc(d.destaque.lbl)}</div></div>
+      </div>
+      <div class="panel">
+        <h3>Solicitações recentes</h3>
+        ${recentes.map(s => `
+          <div class="list-item">
+            <div><div>${esc(s.titulo)}</div><div class="meta">${esc(labelUnidade(this.usuario))} ${esc(s.unidade)} · ${esc(s.categoria)}</div></div>
+            <div>${tag('solicitacao', s.status)}</div>
+          </div>`).join('') || '<div class="empty">Nenhuma solicitação registrada.</div>'}
+        <div style="margin-top:10px;"><a class="btn btn-ghost btn-sm" href="sindico-solicitacoes.html">Gerenciar solicitações</a></div>
+      </div>`;
+  }
+}
+new PainelSindico('s_painel').iniciar();
+</script>
+</body>
+</html>
