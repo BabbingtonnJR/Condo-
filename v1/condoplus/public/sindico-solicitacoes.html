@@ -8,35 +8,55 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-new CrudPage({
-  tela: 's_solicitacoes',
-  titulo: 'Solicitações do condomínio',
-  nomeSingular: 'solicitação',
-  recurso: '/solicitacoes',
-  permitirCriar: false, // quem abre é o morador
-  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
-  antesDeCarregar: async p => {
-    p.prestadores = await api.get('/usuarios?perfil=prestador&status=ativo');
-  },
-  colunas: p => [
-    { rotulo: labelUnidade(p.usuario), campo: 'unidade' },
-    { rotulo: 'Solicitação', html: s => `${esc(s.titulo)}<div class="meta">${esc(s.categoria)} · ${fmt.data(s.criado_em)}</div>` },
-    { rotulo: 'Prestador', html: s => esc(s.prestador_nome || '—') },
-    { rotulo: 'Status', html: s => tag('solicitacao', s.status) },
-  ],
-  campos: [
-    { nome: 'status', rotulo: 'Status', tipo: 'selecao',
-      opcoes: [['aberto', 'Aberto'], ['progresso', 'Em andamento'], ['concluido', 'Concluído']] },
-    { nome: 'prestador_nome', rotulo: 'Prestador responsável', tipo: 'selecao',
-      opcoes: p => [['', '— nenhum —'], ...p.prestadores.map(x => [x.nome, x.nome])] },
-    { nome: 'categoria', rotulo: 'Categoria', tipo: 'selecao', opcoes: ['Manutenção', 'Ocorrência', 'Outro'] },
-  ],
-  vazio: 'Nenhuma solicitação registrada.',
-}).iniciar();
+const PAGE_SCREEN = 's_solicitacoes';
+
+async function renderMain(){
+  const solicitacoes = await api.get('/solicitacoes');
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Solicitações do condomínio</h2></div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Unidade</th><th>Solicitação</th><th>Categoria</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${solicitacoes.map(s => `
+            <tr>
+              <td>${s.unidade}</td><td>${s.titulo}</td><td>${s.categoria}</td>
+              <td id="tag-${s.id}">${s.status}</td>
+              <td>
+                <select onchange="mudarStatus(${s.id}, this.value)">
+                  <option ${s.status==='aberto'?'selected':''} value="aberto">Aberto</option>
+                  <option ${s.status==='progresso'?'selected':''} value="progresso">Em andamento</option>
+                  <option ${s.status==='concluido'?'selected':''} value="concluido">Concluído</option>
+                </select>
+              </td>
+            </tr>`).join('') || '<tr><td colspan="5"><div class="empty">Nenhuma solicitação registrada.</div></td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function mudarStatus(id, status){
+  try {
+    await api.put('/solicitacoes/' + id, { status });
+    toast('Status da solicitação atualizado.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

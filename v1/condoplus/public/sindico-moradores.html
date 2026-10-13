@@ -8,40 +8,96 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-// Integrante 1 — CRUD de moradores (tabela: moradores)
-new CrudPage({
-  tela: 's_moradores',
-  titulo: p => labelMorador(p.usuario),                 // "Moradores" / "Colaboradores" / "Sócios"
-  nomeSingular: p => rotulos(p.usuario).pessoa,
-  recurso: '/moradores',
-  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
-  fixos:   p => ({ condominio_id: p.usuario.condominio_id }),
-  ajuda: p => `CRUD completo (RF04) gravando na tabela <code>moradores</code>. A mesma tela atende os três tipos de cliente:
-    aqui ela se chama <strong>${esc(labelMorador(p.usuario))}</strong> e o campo de unidade se chama
-    <strong>${esc(labelUnidade(p.usuario))}</strong> — os rótulos vêm do tipo do condomínio.`,
-  colunas: p => [
-    { rotulo: 'Nome', campo: 'nome' },
-    { rotulo: labelUnidade(p.usuario), campo: 'unidade' },
-    { rotulo: 'E-mail', campo: 'email' },
-    { rotulo: 'Status', html: m => tag('ativo', m.status) },
-  ],
-  campos: p => [
-    { nome: 'nome', rotulo: 'Nome completo', obrigatorio: true },
-    { nome: 'unidade', rotulo: labelUnidade(p.usuario), obrigatorio: true },
-    { nome: 'email', rotulo: 'E-mail', tipo: 'email', obrigatorio: true },
-  ],
-  acoes: [
-    { rotulo: m => m.status === 'ativo' ? 'Desativar' : 'Reativar',
-      executar: async m => {
-        const { status } = await api.patch(`/moradores/${m.id}/status`);
-        return status === 'ativo' ? 'Cadastro reativado.' : 'Cadastro desativado.';
-      } },
-  ],
-}).iniciar();
+const PAGE_SCREEN = 's_moradores';
+let moradoresCache = [];
+
+function tagMorador(s){
+  return s === 'ativo' ? '<span class="tag tag-done">Ativo</span>' : '<span class="tag tag-inactive">Inativo</span>';
+}
+
+async function renderMain(){
+  const u = getUser();
+  const tipo = u.condominio_tipo || 'residencial';
+  moradoresCache = await api.get('/moradores?condominio_id=' + u.condominio_id);
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar">
+      <h2>${labelMorador(tipo)}</h2>
+      <div class="actions"><button class="btn btn-primary" onclick="modalMorador()">+ Cadastrar ${tipo==='comercial' ? 'colaborador' : 'morador'}</button></div>
+    </div>
+    <div class="helper-note">CRUD completo (RF04): cadastrar, editar, consultar e desativar — dados gravados no MySQL (tabela <code>moradores</code>). ${tipo==='comercial' ? 'Neste condomínio comercial, o rótulo e o campo "unidade" viram "colaborador" e "sala/andar" — mesma tabela, mesma tela, só muda o texto exibido conforme o cliente.' : ''}</div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Nome</th><th>${labelUnidade(tipo)}</th><th>E-mail</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${moradoresCache.map(m => `
+            <tr>
+              <td>${m.nome}</td><td>${m.unidade}</td><td>${m.email}</td><td>${tagMorador(m.status)}</td>
+              <td class="row-actions">
+                <button class="btn btn-ghost btn-sm" onclick="modalMorador(${m.id})">Editar</button>
+                <button class="btn ${m.status==='ativo'?'btn-danger':'btn-ghost'} btn-sm" onclick="toggleMorador(${m.id})">${m.status==='ativo'?'Desativar':'Reativar'}</button>
+              </td>
+            </tr>`).join('') || '<tr><td colspan="5"><div class="empty">Nenhum registro cadastrado.</div></td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function modalMorador(id){
+  const m = id ? moradoresCache.find(x => x.id === id) : null;
+  openModal(`
+    <h3>${m ? 'Editar morador' : 'Cadastrar morador'}</h3>
+    <p class="sub">${m ? 'Atualize os dados do morador.' : 'Preencha os dados para cadastrar um novo morador.'}</p>
+    <div class="field"><label>Nome completo</label><input id="mm-nome" value="${m ? m.nome : ''}"></div>
+    <div class="field"><label>Unidade</label><input id="mm-unidade" value="${m ? m.unidade : ''}"></div>
+    <div class="field"><label>E-mail</label><input id="mm-email" value="${m ? m.email : ''}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarMorador(${m ? m.id : 'null'})">${m ? 'Salvar alterações' : 'Cadastrar'}</button>
+    </div>
+  `);
+}
+
+async function salvarMorador(id){
+  const u = getUser();
+  const nome = document.getElementById('mm-nome').value.trim();
+  const unidade = document.getElementById('mm-unidade').value.trim();
+  const email = document.getElementById('mm-email').value.trim();
+  if(!nome || !unidade || !email){ toast('Preencha todos os campos.'); return; }
+  try {
+    if(id){
+      await api.put('/moradores/' + id, { nome, unidade, email });
+      toast('Registro atualizado.');
+    } else {
+      await api.post('/moradores', { nome, unidade, email, condominio_id: u.condominio_id });
+      toast('Cadastrado com sucesso.');
+    }
+    closeModal();
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+async function toggleMorador(id){
+  try {
+    const { status } = await api.patch('/moradores/' + id + '/status');
+    toast(status === 'ativo' ? 'Morador reativado.' : 'Morador desativado.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

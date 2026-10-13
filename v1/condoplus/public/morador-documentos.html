@@ -8,24 +8,40 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-class DocumentosMorador extends BasePage {
-  titulo(){ return 'Documentos'; }
-  carregarDados(){ return api.get('/documentos?condominio_id=' + this.usuario.condominio_id); }
-  renderizarConteudo(documentos){
-    return `<div class="panel"><div class="table-wrap"><table>
-      <thead><tr><th>Documento</th><th>Tipo</th><th>Publicado em</th></tr></thead>
-      <tbody>
-        ${documentos.map(d => `<tr><td>${esc(d.nome)}</td><td>${esc(d.tipo)}</td><td>${fmt.data(d.publicado_em)}</td></tr>`).join('')
-          || '<tr><td colspan="3"><div class="empty">Nenhum documento publicado.</div></td></tr>'}
-      </tbody>
-    </table></div></div>`;
-  }
+const PAGE_SCREEN = 'm_documentos';
+
+async function renderMain(){
+  const documentos = await api.get('/documentos');
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Documentos</h2></div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Documento</th><th>Tipo</th><th>Publicado em</th><th></th></tr></thead>
+        <tbody>
+          ${documentos.map(d => `
+            <tr>
+              <td>${d.nome}</td><td>${d.tipo}</td><td>${new Date(d.publicado_em).toLocaleDateString('pt-BR')}</td>
+              <td><button class="btn btn-ghost btn-sm" onclick="toast('Abrindo ${d.nome}…')">Abrir</button></td>
+            </tr>`).join('') || '<tr><td colspan="4"><div class="empty">Nenhum documento publicado.</div></td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
 }
-new DocumentosMorador('m_documentos').iniciar();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

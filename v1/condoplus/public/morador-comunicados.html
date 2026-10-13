@@ -8,24 +8,35 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-class ComunicadosMorador extends BasePage {
-  titulo(){ return 'Comunicados'; }
-  carregarDados(){ return api.get('/comunicados?condominio_id=' + this.usuario.condominio_id); }
-  renderizarConteudo(comunicados){
-    return `<div class="panel">
+const PAGE_SCREEN = 'm_comunicados';
+
+async function renderMain(){
+  const comunicados = await api.get('/comunicados');
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Comunicados</h2></div>
+    <div class="panel">
       ${comunicados.map(c => `
         <div class="list-item">
-          <div><div style="font-weight:500;">${esc(c.titulo)}</div><div class="meta">${esc(c.corpo)}</div></div>
-          <div class="meta" style="white-space:nowrap;">${fmt.data(c.publicado_em)}</div>
+          <div><div style="font-weight:500;">${c.titulo}</div><div class="meta">${c.corpo || ''}</div></div>
+          <div class="meta" style="white-space:nowrap;">${new Date(c.publicado_em).toLocaleDateString('pt-BR')}</div>
         </div>`).join('') || '<div class="empty">Nenhum comunicado publicado ainda.</div>'}
     </div>`;
-  }
 }
-new ComunicadosMorador('m_comunicados').iniciar();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

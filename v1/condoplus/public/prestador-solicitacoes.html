@@ -8,31 +8,53 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-new CrudPage({
-  tela: 'pr_solicitacoes',
-  titulo: 'Solicitações atribuídas a você',
-  recurso: '/solicitacoes',
-  permitirCriar: false,
-  podeEditar: () => false,
-  podeExcluir: () => false,
-  filtros: p => ({ prestador_nome: p.usuario.nome }),
-  colunas: [
-    { rotulo: 'Serviço', html: s => `${esc(s.titulo)}<div class="meta">${esc(s.categoria)} · aberta em ${fmt.data(s.criado_em)}</div>` },
-    { rotulo: 'Unidade', campo: 'unidade' },
-    { rotulo: 'Status', html: s => tag('solicitacao', s.status) },
-  ],
-  acoes: [
-    { rotulo: 'Iniciar atendimento', mostrar: s => s.status === 'aberto',
-      executar: async s => { await api.put(`/solicitacoes/${s.id}`, { status: 'progresso' }); return 'Atendimento iniciado.'; } },
-    { rotulo: 'Marcar como resolvido', mostrar: s => s.status !== 'concluido',
-      executar: async s => { await api.put(`/solicitacoes/${s.id}`, { status: 'concluido' }); return 'Serviço marcado como resolvido.'; } },
-  ],
-  vazio: 'Nenhuma solicitação atribuída a você no momento.',
-}).iniciar();
+const PAGE_SCREEN = 'pr_solicitacoes';
+
+function tagStatus(s){
+  const map = {aberto:['tag-open','Aberto'], progresso:['tag-progress','Em andamento'], concluido:['tag-done','Concluído']};
+  const [cls,label] = map[s] || ['tag-open', s];
+  return `<span class="tag ${cls}">${label}</span>`;
+}
+
+async function renderMain(){
+  const u = getUser();
+  const solicitacoes = await api.get('/solicitacoes?prestador=' + encodeURIComponent(u.nome));
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Solicitações atribuídas a você</h2></div>
+    <div class="panel">
+      ${solicitacoes.map(s => `
+        <div class="list-item">
+          <div><div style="font-weight:500;">${s.titulo}</div><div class="meta">Unidade ${s.unidade}</div></div>
+          <div class="row-actions">
+            ${tagStatus(s.status)}
+            ${s.status!=='concluido' ? `<button class="btn btn-ghost btn-sm" onclick="concluirServico(${s.id})">Marcar como resolvido</button>` : ''}
+          </div>
+        </div>`).join('') || '<div class="empty">Nenhuma solicitação atribuída a você no momento.</div>'}
+    </div>`;
+}
+
+async function concluirServico(id){
+  try {
+    await api.put('/solicitacoes/' + id, { status: 'concluido' });
+    toast('Serviço marcado como resolvido.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

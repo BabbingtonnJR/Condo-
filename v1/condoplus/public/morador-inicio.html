@@ -8,49 +8,47 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-class InicioMorador extends BasePage {
-  titulo(){ return `Olá, ${this.usuario.nome.split(' ')[0]}`; }
-  subtitulo(){
-    const u = this.usuario;
-    return `${esc(u.condominio_nome || '')} · ${esc(labelUnidade(u))} ${esc(u.unidade || '')}`;
-  }
+const PAGE_SCREEN = 'm_home';
 
-  async carregarDados(){
-    const u = this.usuario;
-    const filtro = `condominio_id=${u.condominio_id}&unidade=${encodeURIComponent(u.unidade)}`;
-    const [solicitacoes, comunicados, encomendas, financeiro] = await Promise.all([
-      api.get('/solicitacoes?' + filtro),
-      api.get('/comunicados?condominio_id=' + u.condominio_id),
-      api.get('/encomendas?' + filtro),
-      api.get('/financeiro?' + filtro),
-    ]);
-    return { solicitacoes, comunicados, encomendas, financeiro };
-  }
+async function renderMain(){
+  const u = getUser();
+  const [solicitacoes, comunicados, encomendas] = await Promise.all([
+    api.get('/solicitacoes?unidade=' + encodeURIComponent(u.unidade)),
+    api.get('/comunicados'),
+    api.get('/encomendas?unidade=' + encodeURIComponent(u.unidade)),
+  ]);
+  const pendentes = encomendas.filter(e => !e.retirado);
 
-  renderizarConteudo(d){
-    const abertas = d.solicitacoes.filter(s => s.status !== 'concluido').length;
-    const aguardando = d.encomendas.filter(e => !e.retirado).length;
-    const pendentes = d.financeiro.filter(l => l.status === 'pendente');
-    return `
-      <div class="grid-3">
-        <div class="panel stat"><div class="num">${abertas}</div><div class="lbl">Solicitações em aberto</div></div>
-        <div class="panel stat"><div class="num">${aguardando}</div><div class="lbl">Encomendas aguardando retirada</div></div>
-        <div class="panel stat"><div class="num">${pendentes.length}</div><div class="lbl">Boletos pendentes (${fmt.moeda(pendentes.reduce((a, l) => a + l.valor, 0))})</div></div>
-      </div>
-      <div class="panel">
-        <h3>Últimos comunicados</h3>
-        ${d.comunicados.slice(0, 3).map(c => `
-          <div class="list-item"><div><div>${esc(c.titulo)}</div><div class="meta">${fmt.data(c.publicado_em)}</div></div></div>
-        `).join('') || '<div class="empty">Nenhum comunicado ainda.</div>'}
-        <div style="margin-top:10px;"><a class="btn btn-ghost btn-sm" href="morador-comunicados.html">Ver todos</a></div>
-      </div>`;
-  }
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><div><h2>Olá, ${u.nome.split(' ')[0]}</h2><div class="crumb">Residencial Jardim das Acácias · Unidade ${u.unidade}</div></div></div>
+    <div class="grid-3">
+      <div class="panel stat"><div class="num">${solicitacoes.length}</div><div class="lbl">Suas solicitações</div></div>
+      <div class="panel stat"><div class="num">${comunicados.length}</div><div class="lbl">Comunicados recentes</div></div>
+      <div class="panel stat"><div class="num">${pendentes.length}</div><div class="lbl">Encomendas aguardando retirada</div></div>
+    </div>
+    <div class="panel">
+      <h3>Últimos comunicados</h3>
+      ${comunicados.slice(0,2).map(c => `
+        <div class="list-item"><div><div>${c.titulo}</div><div class="meta">${new Date(c.publicado_em).toLocaleDateString('pt-BR')}</div></div></div>
+      `).join('') || '<div class="empty">Nenhum comunicado ainda.</div>'}
+      <div style="margin-top:10px;"><a class="btn btn-ghost btn-sm" href="morador-comunicados.html">Ver todos</a></div>
+    </div>`;
 }
-new InicioMorador('m_home').iniciar();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

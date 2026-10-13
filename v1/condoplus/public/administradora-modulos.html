@@ -7,68 +7,79 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 <style>
-  .switch{position:relative;display:inline-block;width:38px;height:21px;flex-shrink:0;}
+  .switch{position:relative;display:inline-block;width:38px;height:21px;}
   .switch input{opacity:0;width:0;height:0;}
   .slider{position:absolute;cursor:pointer;inset:0;background:#D5D9C8;transition:.15s;border-radius:20px;}
   .slider:before{position:absolute;content:"";height:15px;width:15px;left:3px;bottom:3px;background:white;transition:.15s;border-radius:50%;}
   input:checked + .slider{background:var(--green);}
   input:checked + .slider:before{transform:translateX(17px);}
-  input:focus-visible + .slider{outline:2px solid var(--ochre);outline-offset:2px;}
-  .modulo-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid #EDEFE4;}
+  .modulo-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #EDEFE4;}
   .modulo-row:last-child{border-bottom:none;}
   .modulo-row .desc{font-size:12px;color:var(--ink-soft);margin-top:2px;}
 </style>
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
+const PAGE_SCREEN = 'a_modulos';
+
 const MODULOS_INFO = {
-  reservas_area_comum: { label: 'Reservas de área comum', desc: 'Salão de festas, churrasqueira, quadra — típico de residenciais e clubes.' },
-  estacionamento_rotativo: { label: 'Estacionamento rotativo', desc: 'Vagas compartilhadas, reservadas dia a dia — típico de prédios comerciais.' },
-  controle_convidados_evento: { label: 'Controle de convidados por evento', desc: 'Lista de convidados e registro de entrada em eventos — típico de clubes.' },
+  reservas_area_comum: { label: 'Reservas de área comum', desc: 'Salão de festas, churrasqueira, quadra — típico de condomínios residenciais e clubes.' },
+  estacionamento_rotativo: { label: 'Estacionamento rotativo', desc: 'Vagas compartilhadas, reservadas dia a dia — exclusivo de prédios comerciais.' },
+  controle_convidados_evento: { label: 'Controle de convidados por evento', desc: 'Lista de convidados e confirmação de entrada em eventos — exclusivo de clubes.' },
 };
 
-class ModulosAdministradora extends BasePage {
-  titulo(){ return 'Módulos por condomínio'; }
-  carregarDados(){ return api.get('/condominios'); }
+let condominiosCache = [];
 
-  renderizarConteudo(condominios){
-    return `
-      <div class="helper-note">
-        Esta tela materializa a <strong>alta variabilidade</strong>: em vez de um software diferente para cada cliente,
-        a administradora liga e desliga módulos por condomínio. O menu do síndico e dos moradores muda na próxima tela
-        que eles abrirem — sem alterar código.
-      </div>
-      ${condominios.map(c => `
-        <div class="panel">
-          <h3>${esc(c.nome)} <span class="tag tag-progress" style="margin-left:6px;">${esc(c.tipo)}</span></h3>
-          ${Object.keys(MODULOS_INFO).map(chave => `
-            <div class="modulo-row">
-              <div>
-                <div style="font-weight:500;">${MODULOS_INFO[chave].label}</div>
-                <div class="desc">${MODULOS_INFO[chave].desc}</div>
-              </div>
-              <label class="switch" aria-label="${MODULOS_INFO[chave].label} — ${esc(c.nome)}">
-                <input type="checkbox" ${c.modulos[chave] ? 'checked' : ''} onchange="pagina.alternar(${c.id}, '${chave}', this.checked)">
-                <span class="slider"></span>
-              </label>
-            </div>`).join('')}
-        </div>`).join('')}`;
-  }
-
-  async alternar(condominioId, modulo, ativo){
-    try {
-      await api.patch(`/condominios/${condominioId}/modulos`, { modulo, ativo });
-      toast(`${MODULOS_INFO[modulo].label}: ${ativo ? 'ligado' : 'desligado'}.`);
-    } catch(e) {
-      toast(e.message);
-      await this.recarregar();
-    }
-  }
+async function renderMain(){
+  condominiosCache = await api.get('/condominios');
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Módulos por condomínio</h2></div>
+    <div class="helper-note">
+      Esta é a tela que materializa a <strong>alta variabilidade</strong> do projeto: em vez de instanciar um
+      software diferente para cada cliente, a administradora liga e desliga módulos por condomínio. O
+      front-end lê essa configuração no login e mostra só o que está habilitado para aquele cliente.
+    </div>
+    ${condominiosCache.map(c => {
+      const modulos = typeof c.modulos === 'string' ? JSON.parse(c.modulos) : c.modulos;
+      return `
+      <div class="panel">
+        <h3>${c.nome} <span class="tag tag-progress" style="margin-left:6px;">${c.tipo}</span></h3>
+        ${Object.keys(MODULOS_INFO).map(key => `
+          <div class="modulo-row">
+            <div>
+              <div style="font-weight:500;">${MODULOS_INFO[key].label}</div>
+              <div class="desc">${MODULOS_INFO[key].desc}</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" ${modulos[key] ? 'checked' : ''} onchange="alternarModulo(${c.id}, '${key}', this.checked)">
+              <span class="slider"></span>
+            </label>
+          </div>
+        `).join('')}
+      </div>`;
+    }).join('')}
+  `;
 }
-new ModulosAdministradora('a_modulos').iniciar();
+
+async function alternarModulo(condominioId, modulo, ativo){
+  try {
+    await api.patch(`/condominios/${condominioId}/modulos`, { modulo, ativo });
+    toast(`Módulo ${ativo ? 'ativado' : 'desativado'} para este condomínio.`);
+  } catch(e){ toast(e.message); await renderMain(); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

@@ -8,61 +8,64 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-class PainelSindico extends BasePage {
-  titulo(){ return 'Painel do síndico'; }
-  subtitulo(){
-    const u = this.usuario;
-    return `${esc(u.condominio_nome || '')} · <span class="tag tag-progress">${esc(u.condominio_tipo || '')}</span>`;
-  }
+const PAGE_SCREEN = 's_painel';
 
-  async carregarDados(){
-    const u = this.usuario, c = u.condominio_id, modulos = modulosDe(u);
-    const [solicitacoes, moradores, financeiro] = await Promise.all([
-      api.get('/solicitacoes?condominio_id=' + c),
-      api.get('/moradores?condominio_id=' + c),
-      api.get('/financeiro?condominio_id=' + c),
-    ]);
-    // O terceiro indicador depende dos MÓDULOS ligados para este cliente (variabilidade)
-    let destaque;
-    if(modulos.estacionamento_rotativo){
-      const vagas = await api.get(`/vagas?condominio_id=${c}&data_reserva=${fmt.hoje()}`);
-      destaque = { num: `${vagas.filter(v => !v.reservado_por).length}/${vagas.length}`, lbl: 'Vagas livres hoje' };
-    } else if(modulos.controle_convidados_evento){
-      const convidados = await api.get('/convidados?condominio_id=' + c);
-      destaque = { num: convidados.filter(x => x.status !== 'presente').length, lbl: 'Convidados aguardados' };
-    } else if(modulos.reservas_area_comum){
-      const reservas = await api.get('/reservas?condominio_id=' + c + '&status=pendente');
-      destaque = { num: reservas.length, lbl: 'Reservas aguardando confirmação' };
-    } else {
-      destaque = { num: financeiro.filter(l => l.vencido).length, lbl: 'Boletos vencidos' };
-    }
-    return { solicitacoes, moradores, destaque };
-  }
-
-  renderizarConteudo(d){
-    const recentes = d.solicitacoes.slice(0, 5);
-    return `
-      <div class="grid-3">
-        <div class="panel stat"><div class="num">${d.solicitacoes.filter(s => s.status !== 'concluido').length}</div><div class="lbl">Solicitações em aberto</div></div>
-        <div class="panel stat"><div class="num">${d.moradores.filter(m => m.status === 'ativo').length}</div><div class="lbl">${esc(labelMorador(this.usuario))} ativos</div></div>
-        <div class="panel stat"><div class="num">${esc(d.destaque.num)}</div><div class="lbl">${esc(d.destaque.lbl)}</div></div>
-      </div>
-      <div class="panel">
-        <h3>Solicitações recentes</h3>
-        ${recentes.map(s => `
-          <div class="list-item">
-            <div><div>${esc(s.titulo)}</div><div class="meta">${esc(labelUnidade(this.usuario))} ${esc(s.unidade)} · ${esc(s.categoria)}</div></div>
-            <div>${tag('solicitacao', s.status)}</div>
-          </div>`).join('') || '<div class="empty">Nenhuma solicitação registrada.</div>'}
-        <div style="margin-top:10px;"><a class="btn btn-ghost btn-sm" href="sindico-solicitacoes.html">Gerenciar solicitações</a></div>
-      </div>`;
-  }
+function tagStatus(s){
+  const map = {aberto:['tag-open','Aberto'], progresso:['tag-progress','Em andamento'], concluido:['tag-done','Concluído']};
+  const [cls,label] = map[s] || ['tag-open', s];
+  return `<span class="tag ${cls}">${label}</span>`;
 }
-new PainelSindico('s_painel').iniciar();
+
+async function renderMain(){
+  const u = getUser();
+  const [solicitacoes, moradores, reservas] = await Promise.all([
+    api.get('/solicitacoes'), api.get('/moradores?condominio_id=' + u.condominio_id), api.get('/reservas'),
+  ]);
+  const tipo = u.condominio_tipo || 'residencial';
+  const modulos = (typeof u.condominio_modulos === 'string') ? JSON.parse(u.condominio_modulos) : (u.condominio_modulos || {});
+
+  // Terceiro stat do painel muda conforme o módulo habilitado — é a MESMA tela
+  // de painel, mas o KPI de destaque se adapta ao tipo de cliente (Parte III).
+  let terceiroStat = `<div class="panel stat"><div class="num">${reservas.filter(r=>r.status==='pendente').length}</div><div class="lbl">Reservas pendentes</div></div>`;
+  if(modulos.estacionamento_rotativo){
+    const hoje = new Date().toISOString().slice(0,10);
+    const vagas = await api.get(`/vagas?condominio_id=${u.condominio_id}&data=${hoje}`);
+    const livres = vagas.filter(v => !v.reservado_por).length;
+    terceiroStat = `<div class="panel stat"><div class="num">${livres}/${vagas.length}</div><div class="lbl">Vagas livres hoje</div></div>`;
+  } else if(modulos.controle_convidados_evento){
+    const convidados = await api.get('/convidados?condominio_id=' + u.condominio_id);
+    terceiroStat = `<div class="panel stat"><div class="num">${convidados.filter(c=>c.status!=='presente').length}</div><div class="lbl">Convidados aguardados</div></div>`;
+  }
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Painel do síndico</h2><div class="crumb">${u.condominio_nome || ''} · <span class="tag tag-progress">${tipo}</span></div></div>
+    <div class="grid-3">
+      <div class="panel stat"><div class="num">${solicitacoes.filter(s=>s.status!=='concluido').length}</div><div class="lbl">Solicitações em aberto</div></div>
+      <div class="panel stat"><div class="num">${moradores.filter(m=>m.status==='ativo').length}</div><div class="lbl">${labelMorador(tipo)} ativos</div></div>
+      ${terceiroStat}
+    </div>
+    <div class="panel">
+      <h3>Solicitações recentes</h3>
+      ${solicitacoes.map(s => `
+        <div class="list-item"><div><div>${s.titulo}</div><div class="meta">Unidade ${s.unidade} · ${s.categoria}</div></div><div>${tagStatus(s.status)}</div></div>
+      `).join('') || '<div class="empty">Nenhuma solicitação registrada.</div>'}
+    </div>`;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

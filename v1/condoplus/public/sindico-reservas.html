@@ -8,33 +8,62 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-new CrudPage({
-  tela: 's_reservas',
-  titulo: 'Reservas de área comum',
-  recurso: '/reservas',
-  permitirCriar: false,
-  podeEditar: () => false,
-  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
-  descricao: r => `${r.area} em ${fmt.data(r.data_reserva)}`,
-  ajuda: 'Este menu só aparece para condomínios com o módulo <strong>reservas de área comum</strong> ligado. Em um condomínio comercial (sem salão de festas ou churrasqueira), ele nem existe.',
-  colunas: [
-    { rotulo: 'Área', campo: 'area' },
-    { rotulo: 'Data', html: r => `${fmt.data(r.data_reserva)} <div class="meta">${esc(r.hora)}</div>` },
-    { rotulo: 'Reservado por', campo: 'morador' },
-    { rotulo: 'Status', html: r => tag('reserva', r.status) },
-  ],
-  acoes: [
-    { rotulo: 'Confirmar', mostrar: r => r.status === 'pendente',
-      executar: async r => { await api.patch(`/reservas/${r.id}/confirmar`); return 'Reserva confirmada.'; } },
-    { rotulo: 'Recusar', mostrar: r => r.status === 'pendente', confirmar: 'Recusar (cancelar) esta reserva?',
-      executar: async r => { await api.patch(`/reservas/${r.id}/cancelar`); return 'Reserva recusada.'; } },
-  ],
-  vazio: 'Nenhuma reserva registrada.',
-}).iniciar();
+const PAGE_SCREEN = 's_reservas';
+
+function tagReserva(s){
+  const map = {pendente:['tag-open','Pendente'], confirmada:['tag-done','Confirmada'], cancelada:['tag-inactive','Cancelada']};
+  const [cls,label] = map[s] || ['tag-open', s];
+  return `<span class="tag ${cls}">${label}</span>`;
+}
+
+async function renderMain(){
+  const reservas = await api.get('/reservas');
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Reservas de área comum</h2></div>
+    <div class="helper-note">
+      Este menu só aparece para síndicos de condomínios com o módulo <strong>reservas de área comum</strong>
+      habilitado — em um condomínio comercial (sem salão de festas ou churrasqueira), esse item nem existe
+      no menu lateral.
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Área</th><th>Data</th><th>Morador</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${reservas.map(r => `
+            <tr>
+              <td>${r.area}</td><td>${new Date(r.data_reserva).toLocaleDateString('pt-BR')} · ${r.hora}</td><td>${r.morador}</td>
+              <td>${tagReserva(r.status)}</td>
+              <td class="row-actions">
+                ${r.status==='pendente' ? `<button class="btn btn-ghost btn-sm" onclick="confirmar(${r.id})">Confirmar</button>` : ''}
+              </td>
+            </tr>`).join('') || '<tr><td colspan="5"><div class="empty">Nenhuma reserva registrada.</div></td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function confirmar(id){
+  try {
+    await api.put('/reservas/' + id, { status: 'confirmada' });
+    toast('Reserva confirmada.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

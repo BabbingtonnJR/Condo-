@@ -8,43 +8,110 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-new CrudPage({
-  tela: 's_estacionamento',
-  titulo: 'Estacionamento rotativo',
-  subtitulo: () => `Vagas de hoje (${fmt.data(fmt.hoje())})`,
-  nomeSingular: 'vaga',
-  recurso: '/vagas',
-  filtros: p => ({ condominio_id: p.usuario.condominio_id, data_reserva: fmt.hoje() }),
-  fixos:   p => ({ condominio_id: p.usuario.condominio_id, data_reserva: fmt.hoje() }),
-  ajuda: `Módulo <strong>exclusivo de condomínios comerciais</strong>: a vaga não pertence a uma sala fixa,
-    ela é reservada dia a dia por colaboradores e visitantes de empresas diferentes.`,
-  cabecalho: (vagas) => {
-    const livres = vagas.filter(v => !v.reservado_por).length;
-    return `<div class="grid-3">
+const PAGE_SCREEN = 's_estacionamento';
+
+async function renderMain(){
+  const u = getUser();
+  const hoje = new Date().toISOString().slice(0,10);
+  const vagas = await api.get(`/vagas?condominio_id=${u.condominio_id}&data=${hoje}`);
+  const livres = vagas.filter(v => !v.reservado_por).length;
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar">
+      <h2>Estacionamento rotativo</h2>
+      <div class="actions"><button class="btn btn-primary" onclick="modalNovaVaga()">+ Cadastrar vaga</button></div>
+    </div>
+    <div class="helper-note">
+      Módulo <strong>exclusivo de condomínios comerciais</strong> — não aparece para clientes residenciais
+      ou clubes, porque só faz sentido onde a vaga não pertence a uma unidade fixa e sim é compartilhada
+      dia a dia entre colaboradores/visitantes de diferentes salas.
+    </div>
+    <div class="grid-3">
       <div class="panel stat"><div class="num">${vagas.length}</div><div class="lbl">Vagas cadastradas hoje</div></div>
       <div class="panel stat"><div class="num">${livres}</div><div class="lbl">Vagas livres</div></div>
       <div class="panel stat"><div class="num">${vagas.length - livres}</div><div class="lbl">Vagas ocupadas</div></div>
+    </div>
+    <div class="panel">
+      <h3>Vagas de hoje (${new Date().toLocaleDateString('pt-BR')})</h3>
+      <table>
+        <thead><tr><th>Vaga</th><th>Status</th><th>Reservada por</th><th></th></tr></thead>
+        <tbody>
+          ${vagas.map(v => `
+            <tr>
+              <td>${v.codigo}</td>
+              <td>${v.reservado_por ? '<span class="tag tag-progress">Ocupada</span>' : '<span class="tag tag-done">Livre</span>'}</td>
+              <td>${v.reservado_por || '—'}</td>
+              <td class="row-actions">
+                ${v.reservado_por
+                  ? `<button class="btn btn-ghost btn-sm" onclick="liberarVaga(${v.id})">Liberar</button>`
+                  : `<button class="btn btn-ghost btn-sm" onclick="modalReservarVaga(${v.id})">Reservar</button>`}
+              </td>
+            </tr>`).join('') || '<tr><td colspan="4"><div class="empty">Nenhuma vaga cadastrada para hoje.</div></td></tr>'}
+        </tbody>
+      </table>
     </div>`;
-  },
-  colunas: [
-    { rotulo: 'Vaga', campo: 'codigo' },
-    { rotulo: 'Status', html: v => tag('vaga', v.reservado_por ? 'ocupada' : 'livre') },
-    { rotulo: 'Reservada por', html: v => esc(v.reservado_por || '—') },
-  ],
-  campos: [{ nome: 'codigo', rotulo: 'Código da vaga', obrigatorio: true, placeholder: 'Ex: G-05' }],
-  acoes: [
-    { rotulo: 'Reservar', mostrar: v => !v.reservado_por, tituloFormulario: 'Reservar vaga', rotuloBotao: 'Reservar',
-      campos: [{ nome: 'reservado_por', rotulo: 'Reservada por (colaborador ou empresa)', obrigatorio: true }],
-      executar: async (v, p, dados) => { await api.patch(`/vagas/${v.id}/reservar`, dados); return `Vaga ${v.codigo} reservada.`; } },
-    { rotulo: 'Liberar', mostrar: v => !!v.reservado_por,
-      executar: async v => { await api.patch(`/vagas/${v.id}/reservar`, { reservado_por: null }); return `Vaga ${v.codigo} liberada.`; } },
-  ],
-  vazio: 'Nenhuma vaga cadastrada para hoje.',
-}).iniciar();
+}
+
+function modalNovaVaga(){
+  openModal(`
+    <h3>Cadastrar vaga</h3>
+    <p class="sub">Cadastre uma nova vaga disponível para hoje.</p>
+    <div class="field"><label>Código da vaga</label><input id="vg-codigo" placeholder="Ex: G-05"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarVaga()">Cadastrar</button>
+    </div>
+  `);
+}
+async function salvarVaga(){
+  const u = getUser();
+  const codigo = document.getElementById('vg-codigo').value.trim();
+  if(!codigo){ toast('Informe o código da vaga.'); return; }
+  try {
+    await api.post('/vagas', { condominio_id: u.condominio_id, codigo });
+    closeModal(); toast('Vaga cadastrada.'); await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+function modalReservarVaga(id){
+  openModal(`
+    <h3>Reservar vaga</h3>
+    <div class="field"><label>Reservada por (colaborador/empresa)</label><input id="vg-nome" placeholder="Ex: Estúdio Criativo Bosque"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarReserva(${id})">Reservar</button>
+    </div>
+  `);
+}
+async function confirmarReserva(id){
+  const nome = document.getElementById('vg-nome').value.trim();
+  if(!nome){ toast('Informe quem vai usar a vaga.'); return; }
+  try {
+    await api.patch('/vagas/' + id + '/reservar', { reservado_por: nome });
+    closeModal(); toast('Vaga reservada.'); await renderMain();
+  } catch(e){ toast(e.message); }
+}
+async function liberarVaga(id){
+  try {
+    await api.patch('/vagas/' + id + '/reservar', { reservado_por: null });
+    toast('Vaga liberada.'); await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

@@ -8,45 +8,80 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-// Integrante 4 — CRUD de condomínios (tabela: condominios)
-const NOMES_MODULOS = {
-  reservas_area_comum: 'Reservas', estacionamento_rotativo: 'Estacionamento rotativo',
-  controle_convidados_evento: 'Convidados de evento',
-};
+const PAGE_SCREEN = 'a_condominios';
 
-new CrudPage({
-  tela: 'a_condominios',
-  titulo: 'Condomínios',
-  nomeSingular: 'condomínio',
-  recurso: '/condominios',
-  ajuda: `Ao cadastrar, o <strong>tipo de cliente</strong> escolhido define quais módulos já vêm ligados e quais nomes as telas usam
-    (Factory Method no back-end: <code>ResidencialCreator</code>, <code>ComercialCreator</code>, <code>ClubeCreator</code>).
-    O tipo não muda depois do cadastro; os módulos podem ser ajustados em <a href="administradora-modulos.html"><u>Módulos por condomínio</u></a>.`,
-  colunas: [
-    { rotulo: 'Condomínio', html: c => `<div style="font-weight:500;">${esc(c.nome)}</div><div class="meta">${esc(c.endereco || '')}</div>` },
-    { rotulo: 'Tipo', html: c => `<span class="tag tag-progress">${esc(c.tipo)}</span><div class="meta">trata pessoas como "${esc(c.rotulos.pessoas)}"</div>` },
-    { rotulo: 'Unidades', campo: 'unidades' },
-    { rotulo: 'Síndico', html: c => esc(c.sindico_nome || '—') },
-    { rotulo: 'Módulos ativos', html: c => {
-        const ativos = Object.keys(c.modulos).filter(k => c.modulos[k]).map(k => NOMES_MODULOS[k] || k);
-        return esc(ativos.join(', ') || 'nenhum');
-      } },
-  ],
-  campos: [
-    { nome: 'nome', rotulo: 'Nome do condomínio', obrigatorio: true },
-    { nome: 'endereco', rotulo: 'Endereço' },
-    { nome: 'tipo', rotulo: 'Tipo de cliente', tipo: 'selecao', somenteNaCriacao: true,
-      opcoes: [['residencial', 'Residencial'], ['comercial', 'Comercial (escritórios)'], ['clube', 'Clube recreativo']],
-      dica: 'Define os módulos padrão e os nomes usados nas telas.' },
-    { nome: 'unidades', rotulo: 'Nº de unidades', tipo: 'numero', minimo: 0 },
-    { nome: 'sindico_nome', rotulo: 'Síndico responsável' },
-  ],
-  vazio: 'Nenhum condomínio cadastrado.',
-}).iniciar();
+async function renderMain(){
+  const condominios = await api.get('/condominios');
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Condomínios</h2><div class="actions"><button class="btn btn-primary" onclick="modalCondominio()">+ Cadastrar condomínio</button></div></div>
+    <div class="panel">
+      ${condominios.map(c => {
+        const modulos = typeof c.modulos === 'string' ? JSON.parse(c.modulos) : c.modulos;
+        const ativos = Object.keys(modulos).filter(k => modulos[k]);
+        return `
+        <div class="list-item">
+          <div>
+            <div style="font-weight:500;">${c.nome} <span class="tag tag-progress">${c.tipo}</span></div>
+            <div class="meta">${c.endereco || ''} · ${c.unidades} unidades · síndico: ${c.sindico_nome || '—'}</div>
+            <div class="meta">Módulos ativos: ${ativos.length ? ativos.join(', ') : 'nenhum'}</div>
+          </div>
+          <a class="btn btn-ghost btn-sm" href="administradora-modulos.html">Configurar módulos</a>
+        </div>`;
+      }).join('') || '<div class="empty">Nenhum condomínio cadastrado.</div>'}
+    </div>`;
+}
+
+function modalCondominio(){
+  openModal(`
+    <h3>Cadastrar condomínio</h3>
+    <div class="field"><label>Nome do condomínio</label><input id="cd-nome"></div>
+    <div class="field"><label>Endereço</label><input id="cd-endereco"></div>
+    <div class="field"><label>Tipo de cliente</label>
+      <select id="cd-tipo">
+        <option value="residencial">Residencial</option>
+        <option value="comercial">Comercial (escritórios)</option>
+        <option value="clube">Clube / coworking</option>
+      </select>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Nº de unidades</label><input id="cd-unidades" type="number"></div>
+      <div class="field"><label>Síndico responsável</label><input id="cd-sindico"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarCondominio()">Cadastrar</button>
+    </div>
+  `);
+}
+async function salvarCondominio(){
+  const nome = document.getElementById('cd-nome').value.trim();
+  const endereco = document.getElementById('cd-endereco').value.trim();
+  const unidades = parseInt(document.getElementById('cd-unidades').value) || 0;
+  const sindico_nome = document.getElementById('cd-sindico').value.trim();
+  const tipo = document.getElementById('cd-tipo').value;
+  if(!nome){ toast('Informe o nome do condomínio.'); return; }
+  try {
+    await api.post('/condominios', { nome, endereco, unidades, sindico_nome, tipo });
+    closeModal();
+    toast('Condomínio cadastrado com os módulos padrão do tipo escolhido.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

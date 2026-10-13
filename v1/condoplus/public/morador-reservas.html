@@ -8,41 +8,73 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-const minhaReserva = (r, p) => r.morador === `${p.usuario.nome} (${p.usuario.unidade})`;
+const PAGE_SCREEN = 'm_reservas';
 
-new CrudPage({
-  tela: 'm_reservas',
-  titulo: 'Reservas de área comum',
-  nomeSingular: 'reserva',
-  rotuloNovo: 'Nova reserva',
-  recurso: '/reservas',
-  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
-  fixos:   p => ({ condominio_id: p.usuario.condominio_id, morador: `${p.usuario.nome} (${p.usuario.unidade})` }),
-  ajuda: 'Veja as datas já ocupadas antes de reservar. O síndico confirma cada pedido; enquanto estiver pendente, você pode editar ou cancelar a sua reserva.',
-  colunas: [
-    { rotulo: 'Área', campo: 'area' },
-    { rotulo: 'Data', html: r => `${fmt.data(r.data_reserva)} <div class="meta">${esc(r.hora)}</div>` },
-    { rotulo: 'Reservado por', campo: 'morador' },
-    { rotulo: 'Status', html: r => tag('reserva', r.status) },
-  ],
-  campos: [
-    { nome: 'area', rotulo: 'Área', tipo: 'selecao', opcoes: ['Salão de festas', 'Churrasqueira', 'Quadra poliesportiva', 'Quadra de tênis'] },
-    { nome: 'data_reserva', rotulo: 'Data', tipo: 'data', obrigatorio: true },
-    { nome: 'hora', rotulo: 'Horário', placeholder: 'Ex: 19h–23h' },
-  ],
-  acoes: [
-    { rotulo: 'Cancelar', perigo: true, confirmar: 'Cancelar esta reserva?',
-      mostrar: (r, p) => minhaReserva(r, p) && r.status !== 'cancelada',
-      executar: async r => { await api.patch(`/reservas/${r.id}/cancelar`); return 'Reserva cancelada.'; } },
-  ],
-  podeEditar: (r, p) => minhaReserva(r, p) && r.status === 'pendente',
-  podeExcluir: () => false,
-  vazio: 'Nenhuma reserva registrada.',
-}).iniciar();
+function tagReserva(s){
+  const map = {pendente:['tag-open','Pendente'], confirmada:['tag-done','Confirmada'], cancelada:['tag-inactive','Cancelada']};
+  const [cls,label] = map[s] || ['tag-open', s];
+  return `<span class="tag ${cls}">${label}</span>`;
+}
+
+async function renderMain(){
+  const reservas = await api.get('/reservas');
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Reservas de área comum</h2><div class="actions"><button class="btn btn-primary" onclick="modalNovaReserva()">+ Nova reserva</button></div></div>
+    <div class="panel">
+      ${reservas.map(r => `
+        <div class="list-item">
+          <div><div style="font-weight:500;">${r.area}</div><div class="meta">${new Date(r.data_reserva).toLocaleDateString('pt-BR')} · ${r.hora} · ${r.morador}</div></div>
+          <div>${tagReserva(r.status)}</div>
+        </div>`).join('') || '<div class="empty">Nenhuma reserva registrada.</div>'}
+    </div>`;
+}
+
+function modalNovaReserva(){
+  const u = getUser();
+  openModal(`
+    <h3>Nova reserva</h3>
+    <p class="sub">Solicite o uso de uma área comum. O síndico confirma a reserva.</p>
+    <div class="field"><label>Área</label>
+      <select id="nr-area"><option>Salão de festas</option><option>Churrasqueira</option><option>Quadra poliesportiva</option></select>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Data</label><input id="nr-data" type="date"></div>
+      <div class="field"><label>Horário</label><input id="nr-hora" placeholder="Ex: 19h–23h"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarReserva()">Solicitar</button>
+    </div>
+  `);
+}
+async function salvarReserva(){
+  const u = getUser();
+  const area = document.getElementById('nr-area').value;
+  const data_reserva = document.getElementById('nr-data').value;
+  const hora = document.getElementById('nr-hora').value.trim();
+  if(!data_reserva){ toast('Escolha uma data.'); return; }
+  try {
+    await api.post('/reservas', { area, data_reserva, hora, morador: `${u.nome} (${u.unidade})` });
+    closeModal();
+    toast('Reserva solicitada.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

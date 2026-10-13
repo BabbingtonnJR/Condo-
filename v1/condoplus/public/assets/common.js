@@ -3,18 +3,13 @@ function getUser(){
   try { return JSON.parse(localStorage.getItem('condoplus_user')); }
   catch(e){ return null; }
 }
-function setUser(u){ localStorage.setItem('condoplus_user', JSON.stringify(u)); }
-function logout(){
-  localStorage.removeItem('condoplus_user');
-  window.location.href = 'login.html';
-}
 function requireLogin(){
   const u = getUser();
   if(!u){ window.location.href = 'login.html'; return null; }
   return u;
 }
 
-/* ============ CONFIG DE PERFIS / TELAS ============ */
+/* ============ CONFIG DE PERFIS / ARQUIVOS ============ */
 const ROLES = {
   morador:        { labelPrefix:'Morador',
                     screens:[['m_home','morador-inicio.html','Início'],
@@ -28,17 +23,13 @@ const ROLES = {
                     screens:[['s_painel','sindico-painel.html','Painel do síndico'],
                              ['s_moradores','sindico-moradores.html','Moradores'],
                              ['s_comunicados','sindico-comunicados.html','Comunicados'],
-                             ['s_documentos','sindico-documentos.html','Documentos'],
-                             ['s_financeiro','sindico-financeiro.html','Financeiro'],
                              ['s_solicitacoes','sindico-solicitacoes.html','Solicitações']] },
   administradora: { labelPrefix:'Administradora',
                     screens:[['a_painel','administradora-painel.html','Painel administrativo'],
                              ['a_condominios','administradora-condominios.html','Condomínios'],
-                             ['a_usuarios','administradora-usuarios.html','Usuários'],
                              ['a_modulos','administradora-modulos.html','Módulos por condomínio']] },
   porteiro:       { labelPrefix:'Porteiro',
-                    screens:[['p_encomendas','porteiro-encomendas.html','Encomendas'],
-                             ['p_visitantes','porteiro-visitantes.html','Visitantes']] },
+                    screens:[['p_portaria','porteiro-portaria.html','Portaria']] },
   prestador:      { labelPrefix:'Prestador de Serviço',
                     screens:[['pr_solicitacoes','prestador-solicitacoes.html','Minhas solicitações']] },
   suporte:        { labelPrefix:'Suporte',
@@ -46,74 +37,71 @@ const ROLES = {
 };
 const FIRST_PAGE = {
   morador:'morador-inicio.html', sindico:'sindico-painel.html',
-  administradora:'administradora-painel.html', porteiro:'porteiro-encomendas.html',
+  administradora:'administradora-painel.html', porteiro:'porteiro-portaria.html',
   prestador:'prestador-solicitacoes.html', suporte:'suporte-chamados.html'
 };
 
 /* ============ HELPERS DE UI ============ */
 function toast(msg){
   const t = document.getElementById('toast');
-  if(!t) return alert(msg);
   t.textContent = msg;
   t.classList.add('show');
-  clearTimeout(toast._timer);
-  toast._timer = setTimeout(()=>t.classList.remove('show'), 2600);
+  setTimeout(()=>t.classList.remove('show'), 2200);
 }
 function openModal(html){
   document.getElementById('modal-body').innerHTML = html;
   document.getElementById('modal-backdrop').classList.add('show');
 }
 function closeModal(){
-  const b = document.getElementById('modal-backdrop');
-  if(b) b.classList.remove('show');
+  document.getElementById('modal-backdrop').classList.remove('show');
 }
-document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
 
 /* ============ CHAMADAS À API ============ */
 const api = {
-  async _req(metodo, path, body){
-    const opcoes = { method: metodo };
-    if(body !== undefined){
-      opcoes.headers = { 'Content-Type':'application/json' };
-      opcoes.body = JSON.stringify(body);
-    }
-    const r = await fetch('/api' + path, opcoes);
-    let dados = null;
-    try { dados = await r.json(); } catch(e) { /* resposta sem JSON */ }
-    if(!r.ok) throw new Error((dados && dados.erro) || `Erro ${r.status} ao acessar o servidor.`);
-    return dados;
+  async get(path){
+    const r = await fetch('/api' + path);
+    if(!r.ok) throw new Error((await r.json()).erro || 'Erro ao buscar dados.');
+    return r.json();
   },
-  get(path){ return this._req('GET', path); },
-  post(path, body){ return this._req('POST', path, body); },
-  put(path, body){ return this._req('PUT', path, body); },
-  patch(path, body){ return this._req('PATCH', path, body); },
-  del(path){ return this._req('DELETE', path); },
+  async post(path, body){
+    const r = await fetch('/api' + path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if(!r.ok) throw new Error((await r.json()).erro || 'Erro ao salvar.');
+    return r.json();
+  },
+  async put(path, body){
+    const r = await fetch('/api' + path, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if(!r.ok) throw new Error((await r.json()).erro || 'Erro ao atualizar.');
+    return r.json();
+  },
+  async patch(path, body){
+    const r = await fetch('/api' + path, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined });
+    if(!r.ok) throw new Error((await r.json()).erro || 'Erro ao atualizar.');
+    return r.json();
+  }
 };
 
-/* ============ VARIABILIDADE: rótulos e módulos do condomínio ============ */
-const ROTULOS_PADRAO = { pessoas:'Moradores', pessoa:'morador', unidade:'Unidade' };
-
-function rotulos(u){ return (u && u.condominio_rotulos) || ROTULOS_PADRAO; }
-function labelMorador(u){ return rotulos(u).pessoas; }
-function labelUnidade(u){ return rotulos(u).unidade; }
-function modulosDe(u){
-  const m = u && u.condominio_modulos;
-  return (typeof m === 'string') ? JSON.parse(m) : (m || {});
+/* ============ SIDEBAR (com navegação sensível a módulos — Parte III) ============ */
+function labelUnidade(tipo){
+  return tipo === 'comercial' ? 'Sala/Andar' : 'Unidade';
+}
+function labelMorador(tipo){
+  return tipo === 'comercial' ? 'Colaboradores' : 'Moradores';
 }
 
-/* ============ SIDEBAR (navegação sensível a módulos — Parte III) ============ */
 function screensForRole(u){
   const info = ROLES[u.perfil];
-  if(!info) return [];
   let screens = info.screens.slice();
-  const modulos = modulosDe(u);
+  const tipo = u.condominio_tipo;
+  const modulos = (typeof u.condominio_modulos === 'string') ? JSON.parse(u.condominio_modulos) : (u.condominio_modulos || {});
 
   if(u.perfil === 'sindico'){
-    // "Moradores" muda de rótulo conforme o tipo de cliente
-    screens = screens.map(s => s[0] === 's_moradores' ? [s[0], s[1], labelMorador(u)] : s);
-    // Reservas de área comum só aparece se o módulo estiver habilitado
-    if(modulos.reservas_area_comum){
-      screens.splice(3, 0, ['s_reservas','sindico-reservas.html','Reservas']);
+    // "Moradores" muda de rótulo conforme o tipo de cliente (residencial x comercial)
+    screens = screens.map(s => s[0] === 's_moradores' ? [s[0], s[1], labelMorador(tipo)] : s);
+    // Reservas de área comum só aparece se o módulo estiver habilitado para este condomínio
+    if(!modulos.reservas_area_comum){
+      screens = screens.filter(s => s[0] !== 's_reservas');
+    } else if(!screens.find(s => s[0] === 's_reservas')){
+      screens.splice(2, 0, ['s_reservas','sindico-reservas.html','Reservas']);
     }
     // Estacionamento rotativo — módulo EXCLUSIVO comercial
     if(modulos.estacionamento_rotativo){
@@ -124,33 +112,39 @@ function screensForRole(u){
       screens.push(['s_convidados','sindico-convidados.html','Convidados de evento']);
     }
   }
-  if(u.perfil === 'morador' && !modulos.reservas_area_comum){
-    screens = screens.filter(s => s[0] !== 'm_reservas');
+  if(u.perfil === 'morador'){
+    if(!modulos.reservas_area_comum){
+      screens = screens.filter(s => s[0] !== 'm_reservas');
+    }
   }
   return screens;
 }
 
-function renderSidebar(telaAtiva){
+function renderSidebar(){
   const u = getUser();
   if(!u) return;
   const info = ROLES[u.perfil];
-  const nav = screensForRole(u).map(s =>
-    `<a class="nav-item ${s[0]===telaAtiva?'active':''}" href="${s[1]}"><span class="nav-dot"></span>${esc(s[2])}</a>`
+  const screens = screensForRole(u);
+  const nav = screens.map(s =>
+    `<a class="nav-item ${s[0]===window.PAGE_SCREEN?'active':''}" href="${s[1]}"><span class="nav-dot"></span>${s[2]}</a>`
   ).join('');
-  const condLine = u.condominio_nome
-    ? `${esc(u.condominio_nome)} <span class="tag tag-progress" style="margin-left:4px;">${esc(u.condominio_tipo || '')}</span>`
-    : '';
+  const condLine = u.condominio_nome ? `${u.condominio_nome} <span class="tag tag-progress" style="margin-left:4px;">${u.condominio_tipo || ''}</span>` : '';
   document.getElementById('sidebar').innerHTML = `
     <div class="sidebar-brand"><span class="mark"></span><span>Condo+</span></div>
-    <div class="sidebar-role">Perfil atual<strong>${esc(info.labelPrefix)} — ${esc(u.nome)}${u.unidade ? ' ('+esc(u.unidade)+')' : ''}</strong></div>
+    <div class="sidebar-role">Perfil atual<strong>${info.labelPrefix} — ${u.nome}${u.unidade ? ' ('+u.unidade+')' : ''}</strong></div>
     ${condLine ? `<div class="sidebar-role" style="padding-top:0;">${condLine}</div>` : ''}
     <nav>${nav}</nav>
     <div class="sidebar-footer"><a href="#" id="logout-link">← Sair</a></div>
   `;
-  document.getElementById('logout-link').addEventListener('click', (e) => { e.preventDefault(); logout(); });
+  document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    localStorage.removeItem('condoplus_user');
+    window.location.href = 'login.html';
+  });
 }
-
-/* Escapa texto antes de colocar no HTML (evita quebrar a tela com < ou ") */
-function esc(v){
-  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
+document.addEventListener('DOMContentLoaded', () => {
+  if(document.getElementById('sidebar')){
+    if(!requireLogin()) return;
+    renderSidebar();
+  }
+});

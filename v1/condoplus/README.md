@@ -1,30 +1,29 @@
-# Condo+ — Node/Express + MySQL, com padrões de projeto e variabilidade
+# Condo+ — Protótipo com backend Node/Express + MySQL
 
-Sistema de gestão de condomínios com **back-end Node.js + Express** e banco **MySQL/MariaDB**.
-Todas as telas leem e gravam dados reais; nada é mockado no front-end.
+Este é o protótipo do Condo+ rodando com um back-end de verdade: **Node.js + Express**
+na API e **MySQL (ou MariaDB)** como banco de dados. As 16 telas do sistema (+ login e
+recuperação de senha) buscam e gravam dados reais — nada é mockado no front-end.
 
-| Questão do trabalho | Onde está | Documento |
-|---|---|---|
-| 1 — 10+ classes e padrões (Opção 01) | `src/` e `public/assets/` | [docs/PADROES.md](docs/PADROES.md) |
-| 2 — CRUDs, tabelas e variabilidade | seções abaixo | este README |
-| 3 — Repositório e compactação de código | Git + vídeo | [docs/COMPACTACAO-E-VIDEO.md](docs/COMPACTACAO-E-VIDEO.md) |
+## Pré-requisitos
 
-## Como rodar
+- Node.js 18 ou superior
+- MySQL 8+ ou MariaDB 10.6+ instalado e rodando
 
-Pré-requisitos: Node.js 18+ e MySQL 8+ (ou MariaDB 10.6+).
-
-### 1. Criar o banco
+## 1. Criar o banco de dados
 
 ```bash
 mysql -u root -p --default-character-set=utf8mb4 < db/schema.sql
 mysql -u root -p --default-character-set=utf8mb4 < db/seed.sql
 ```
 
-> O `schema.sql` começa com `DROP DATABASE IF EXISTS condoplus`, porque várias tabelas ganharam
-> colunas novas. Ele apaga o banco antigo e recria do zero. Use sempre
-> `--default-character-set=utf8mb4`, senão os acentos ficam errados.
+> **Importante:** use sempre `--default-character-set=utf8mb4` ao rodar os `.sql` pelo
+> terminal, senão os acentos (João, á, ç...) podem ser gravados errados no banco.
 
-Usuário de banco dedicado (opcional, recomendado):
+Isso cria o banco `condoplus` com 11 tabelas (moradores, comunicados, solicitações,
+documentos, financeiro, reservas, encomendas, visitantes, chamados, condomínios e
+usuários) e já popula tudo com dados de exemplo — nenhuma tela fica em branco.
+
+Opcional — criar um usuário de banco dedicado à aplicação (recomendado em vez de usar `root`):
 
 ```sql
 CREATE USER 'condoplus_app'@'localhost' IDENTIFIED BY 'condoplus_pass';
@@ -32,141 +31,136 @@ GRANT ALL PRIVILEGES ON condoplus.* TO 'condoplus_app'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-### 2. Configurar e iniciar
+## 2. Configurar a conexão
 
 ```bash
-cp .env.example .env      # no Windows: copy .env.example .env  (ajuste usuário/senha do MySQL)
+cp .env.example .env
+```
+
+Edite o `.env` com o usuário/senha do seu MySQL:
+
+```
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=condoplus_app
+DB_PASSWORD=condoplus_pass
+DB_NAME=condoplus
+PORT=3000
+```
+
+## 3. Instalar dependências e rodar
+
+```bash
 npm install
 npm start
 ```
 
-Acesse **http://localhost:3000**. O terminal mostra `Conexão com o banco: OK` quando está tudo certo.
+Acesse **http://localhost:3000** no navegador (redireciona para a tela de login).
 
-### Usuários de teste
+## Usuários de teste (já cadastrados no seed)
 
 | E-mail | Senha | Perfil |
 |---|---|---|
-| renata@condoplus.com | renata123 | Morador (residencial, unidade 302) |
-| marcos@condoplus.com | marcos123 | Síndico — residencial |
-| ana@condoplus.com | ana123 | Síndico — comercial (vê "Colaboradores" e "Estacionamento rotativo") |
-| renato@condoplus.com | renato123 | Síndico — clube (vê "Sócios" e "Convidados de evento") |
+| renata@condoplus.com | renata123 | Morador (unidade 302) |
+| marcos@condoplus.com | marcos123 | Síndico |
 | patricia@condoplus.com | patricia123 | Administradora |
 | jonas@condoplus.com | jonas123 | Porteiro |
-| carlos@condoplus.com | carlos123 | Prestador de serviço |
+| carlos@condoplus.com | carlos123 | Prestador de Serviço |
 | bianca@condoplus.com | bianca123 | Suporte |
 
----
+## Onde está o CRUD (RF04)
 
-## Questão 2 — CRUDs por integrante (2 por pessoa, 8 no total)
+Login como **síndico** → menu **Moradores** (`sindico-moradores.html`).
+Cadastrar, editar e desativar/reativar gravam de verdade na tabela `moradores` via:
+- `GET /api/moradores`
+- `POST /api/moradores`
+- `PUT /api/moradores/:id`
+- `PATCH /api/moradores/:id/status`
 
-Cada CRUD cadastra, consulta, edita e exclui, gravando no MySQL.
+Outras ações que também persistem no banco (não só o CRUD "oficial"):
+publicar comunicado, abrir/mudar status de solicitação, cadastrar condomínio,
+solicitar reserva, registrar encomenda/visitante, resolver/escalar chamado.
 
-| Integrante | Tela 1 | Tela 2 | Login para testar |
-|---|---|---|---|
-| Integrante 1 | Moradores — `sindico-moradores.html` (tabela `moradores`) | Comunicados — `sindico-comunicados.html` (tabela `comunicados`) | marcos |
-| Integrante 2 | Documentos — `sindico-documentos.html` (tabela `documentos`) | Financeiro — `sindico-financeiro.html` (tabela `financeiro`) | marcos |
-| Integrante 3 | Encomendas — `porteiro-encomendas.html` (tabela `encomendas`) | Visitantes — `porteiro-visitantes.html` (tabela `visitantes`) | jonas |
-| Integrante 4 | Condomínios — `administradora-condominios.html` (tabela `condominios`) | Usuários — `administradora-usuarios.html` (tabela `usuarios`) | patricia |
+## Parte III — Alta variabilidade
 
-> Substituam "Integrante 1…4" pelos nomes de vocês. Além dessas 8, também têm CRUD: solicitações
-> (morador), reservas, chamados de suporte, vagas do estacionamento e convidados de evento.
+O eixo de variabilidade escolhido é o **tipo de condomínio** que a administradora atende.
+A tabela `condominios` tem uma coluna `tipo` (`residencial` | `comercial` | `clube`) e uma
+coluna `modulos` (JSON com flags de personalização). Login como **administradora**
+(`patricia@condoplus.com` / `patricia123`) → menu **Módulos por condomínio** para ligar/desligar
+cada módulo por cliente, sem tocar em código.
 
-Regras de negócio que cada um deve saber mostrar:
-- **Moradores:** e-mail único por condomínio; desativar/reativar (`Morador.alternarStatus`).
-- **Comunicados:** título obrigatório e com até 150 caracteres.
-- **Documentos:** tipo limitado a PDF, DOCX, XLSX, Imagem ou Outro; aparece para os moradores.
-- **Financeiro:** não aceita dois boletos da mesma referência para a mesma unidade; "Marcar como pago"; boleto vencido aparece em vermelho.
-- **Encomendas:** "Registrar retirada" só uma vez (`Encomenda.registrarRetirada`).
-- **Visitantes:** horário de entrada gravado automaticamente pelo banco.
-- **Condomínios:** o tipo escolhido define os módulos iniciais (Factory Method); não deixa excluir condomínio com pessoas vinculadas.
-- **Usuários:** e-mail único; senha em branco na edição mantém a atual; a senha nunca é enviada ao navegador.
+| Tipo de cliente | Login de teste | Módulo exclusivo |
+|---|---|---|
+| Residencial | marcos@condoplus.com / marcos123 | Reservas de área comum |
+| **Comercial** | **ana@condoplus.com / ana123** | **Estacionamento rotativo** (a função "fora da caixa" pedida no enunciado) |
+| Clube | renato@condoplus.com / renato123 | Controle de convidados por evento |
 
-## Questão 2 — Tabelas no banco
+O front-end lê `condominio_tipo` e `condominio_modulos` retornados pelo `/api/login` e:
+- só mostra no menu lateral os itens cujo módulo está habilitado (`assets/common.js`, função `screensForRole`);
+- troca rótulos conforme o cliente (ex.: "Moradores" vira "Colaboradores", "Unidade" vira "Sala/Andar" em condomínio comercial);
+- adapta o KPI de destaque do painel do síndico conforme o módulo habilitado (vagas livres, convidados aguardados, ou reservas pendentes).
 
-São 13 tabelas (`db/schema.sql`): `condominios`, `usuarios`, `moradores`, `comunicados`,
-`solicitacoes`, `documentos`, `financeiro`, `reservas`, `encomendas`, `visitantes`, `chamados`,
-`vagas_estacionamento` e `convidados_evento`. Todas as tabelas de dados têm `condominio_id`,
-então cada condomínio só vê os próprios registros (**multi-tenancy por coluna**).
+Nada disso exige duplicar telas ou instanciar um projeto novo por cliente — é a mesma base de
+código, mesma tabela `usuarios`/`condominios`, e a variação vem 100% de configuração salva no
+banco. É a aplicação prática do ativo reutilizável #3 (RBAC) e do RNF10 (Escalabilidade) do
+documento do projeto.
 
-## Questão 2 — Variabilidade planejada
+### Arquitetura de personalização e reuso (pesquisa)
 
-O eixo de variação é o **tipo de cliente** atendido pela administradora: `residencial`,
-`comercial` ou `clube`. O mesmo código atende os três; o que muda é a configuração gravada na
-tabela `condominios` (colunas `tipo` e `modulos`).
-
-**Pontos de variação:**
-
-| O que varia | Residencial | Comercial | Clube | Onde é decidido |
-|---|---|---|---|---|
-| Nome das pessoas | Moradores | Colaboradores | Sócios | `CondominioFactory.js` (rótulos) |
-| Nome da unidade | Unidade | Sala/Andar | Título | `CondominioFactory.js` (rótulos) |
-| Reservas de área comum | ligado | desligado | ligado | coluna `modulos` |
-| Estacionamento rotativo | desligado | **ligado (exclusivo)** | desligado | coluna `modulos` |
-| Convidados de evento | desligado | desligado | **ligado (exclusivo)** | coluna `modulos` |
-| Indicador de destaque do painel | reservas pendentes | vagas livres | convidados aguardados | `sindico-painel.html` |
-
-**Como funciona, de ponta a ponta:**
-
-1. **Na criação** (tempo de configuração): a administradora escolhe o tipo e o `CondominioCreator`
-   correspondente (Factory Method) monta o condomínio com os módulos padrão daquele tipo.
-2. **No ajuste fino** (tempo de execução): em *Módulos por condomínio*, a administradora liga ou
-   desliga qualquer módulo para um cliente específico, sem alterar código.
-3. **No uso**: a cada tela, a `BasePage` recarrega a sessão (`GET /api/sessao/:id`) com tipo,
-   módulos e rótulos. O menu (`screensForRole` em `common.js`) mostra só o que está ligado, os
-   textos mudam conforme o tipo, e uma tela de módulo desligado redireciona para o início mesmo
-   se o endereço for digitado direto.
-
-**Demonstração rápida (1 minuto):** entre como `patricia`, desligue "Reservas de área comum" do
-Residencial Jardim das Acácias. Em outra aba, logado como `marcos`, recarregue: o item "Reservas"
-some do menu. Depois compare os menus de `marcos`, `ana` e `renato`.
-
-**Como estender:** um tipo novo (ex.: coworking) exige só uma classe `CoworkingCreator` e uma
-opção no `ENUM` da coluna `tipo`. Um módulo novo exige a flag no JSON, a tela dele e uma linha
-em `screensForRole`.
-
----
+- **Linguagem/runtime:** Node.js + Express — leve, mesma linguagem no front e no back
+  (JavaScript), ecossistema maduro para APIs REST multi-tenant.
+- **Banco de dados:** MySQL/MariaDB, com **multi-tenancy por coluna** (`condominio_id` em
+  cada tabela) em vez de um banco por cliente — mais simples de manter e migrar em escala,
+  adequado ao porte pequeno/médio dos condomínios do público-alvo. Colunas `JSON` (como
+  `modulos`) permitem guardar configuração variável por cliente sem alterar o schema a cada
+  novo módulo.
+- **Padrão de personalização:** **feature flags por tenant**, guardadas no próprio registro do
+  cliente (`condominios.modulos`) — o mesmo padrão usado por produtos SaaS reais (ex.:
+  planos/add-ons no Slack, módulos habilitáveis no Notion) para vender o mesmo produto de
+  formas diferentes sem branches de código por cliente.
+- **Front-end:** HTML/CSS/JS consumindo uma API REST única — a mesma arquitetura escalaria
+  para um front-end em React/Vue sem mudar o back-end, bastando manter o contrato da API.
+- **Componentes reaproveitáveis:** botões, tags de status, modais e tabelas em `style.css` já
+  são compartilhados entre todas as telas — a "biblioteca de componentes de front-end" citada
+  como ativo reutilizável #6 do documento do projeto.
 
 ## Estrutura do projeto
 
 ```
-condoplus/
-├─ server.js                     # sobe o Express (usa os dois Singletons)
+condoplus-mysql/
+├─ server.js              # servidor Express
+├─ package.json
+├─ .env.example
 ├─ db/
-│  ├─ schema.sql                 # 13 tabelas
-│  └─ seed.sql                   # dados de exemplo dos 3 tipos de condomínio
-├─ src/
-│  ├─ config/AppConfig.js        # SINGLETON 1
-│  ├─ db/Database.js             # SINGLETON 2
-│  ├─ erros.js                   # erros com status HTTP
-│  ├─ models/                    # Entidade + 13 classes de domínio
-│  ├─ repositories/
-│  │  ├─ BaseRepository.js       # TEMPLATE METHOD 1
-│  │  ├─ Repositorios.js         # 13 repositórios concretos
-│  │  └─ RepositoryFactory.js    # FACTORY METHOD 2
-│  ├─ factories/
-│  │  └─ CondominioFactory.js    # FACTORY METHOD 1 (variabilidade)
-│  ├─ controllers/
-│  │  ├─ BaseController.js       # TEMPLATE METHOD 2
-│  │  ├─ CrudController.js       # CRUD genérico (5 endpoints por recurso)
-│  │  ├─ CondominioController.js
-│  │  └─ AuthController.js
-│  └─ routes/api.js              # uma linha por recurso
-├─ public/
-│  ├─ assets/
-│  │  ├─ common.js               # sessão, API, menu sensível a módulos
-│  │  ├─ componentes.js          # FACTORY METHOD 3 (CampoFactory), tags, formatação
-│  │  ├─ BasePage.js             # TEMPLATE METHOD 3 (BasePage) + CrudPage
-│  │  └─ style.css
-│  └─ *.html                     # 24 telas + login e recuperação de senha
-└─ docs/
-   ├─ PADROES.md                 # guia de estudo dos padrões
-   └─ COMPACTACAO-E-VIDEO.md     # roteiro da questão 3
+│  ├─ schema.sql           # estrutura das tabelas
+│  ├─ seed.sql             # dados de exemplo
+│  └─ pool.js              # conexão com o MySQL (mysql2)
+├─ routes/
+│  └─ api.js               # todas as rotas REST
+└─ public/                 # front-end (HTML/CSS/JS puro, sem framework)
+   ├─ login.html
+   ├─ recuperar-senha.html
+   ├─ morador-*.html (7 telas)
+   ├─ sindico-*.html (4 telas)
+   ├─ administradora-*.html (2 telas)
+   ├─ porteiro-portaria.html
+   ├─ prestador-solicitacoes.html
+   ├─ suporte-chamados.html
+   └─ assets/
+      ├─ style.css
+      └─ common.js         # sessão, navegação, modais, wrapper de fetch (`api.*`)
 ```
 
-## Observações para o relatório
+## Observações para o relatório do projeto
 
-- **Senhas:** ficam em texto puro por ser protótipo acadêmico. Em produção seria preciso hash
-  (bcrypt) e sessão por token (JWT ou cookie assinado) em vez do `localStorage`.
-- **Segurança das consultas:** todo SQL usa parâmetros `?`, e só colunas de uma lista permitida
-  entram no `WHERE` (`filtrosPermitidos` no `BaseRepository`), o que evita SQL injection.
-- **Textos na tela:** tudo que vem do banco passa por `esc()` antes de ir para o HTML.
+- **Autenticação (RF02, RF03):** login real contra a tabela `usuarios`, com perfis
+  distintos controlando o menu lateral exibido (base do RBAC do projeto). Por ser um
+  protótipo acadêmico, as senhas ficam em texto puro no banco — em produção seria
+  necessário hash (ex.: bcrypt) e um mecanismo de sessão/token (ex.: JWT ou cookies
+  assinados) em vez de apenas guardar o usuário logado no `localStorage`.
+- Cada tabela do `schema.sql` tem, em comentário, a que Requisito Funcional do
+  documento do projeto ela atende.
+- O front-end é HTML/CSS/JS puro (sem build step) propositalmente, para deixar claro
+  no protótipo a separação entre front-end estático e a API REST — mas a arquitetura
+  já é a mesma que se usaria com um front-end em framework (React/Vue) consumindo a
+  mesma API.

@@ -8,38 +8,88 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-new CrudPage({
-  tela: 's_convidados',
-  titulo: 'Convidados de evento',
-  nomeSingular: 'convidado',
-  rotuloNovo: 'Adicionar convidado',
-  recurso: '/convidados',
-  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
-  fixos:   p => ({ condominio_id: p.usuario.condominio_id }),
-  ajuda: 'Módulo <strong>exclusivo de clubes</strong>: controla quem entra nos eventos do clube, algo que não existe em condomínios residenciais ou comerciais.',
-  colunas: [
-    { rotulo: 'Evento', campo: 'evento' },
-    { rotulo: 'Convidado', campo: 'convidado' },
-    { rotulo: 'Responsável', campo: 'responsavel' },
-    { rotulo: 'Status', html: c => tag('convidado', c.status) },
-  ],
-  campos: p => [
-    { nome: 'evento', rotulo: 'Evento', obrigatorio: true, placeholder: 'Ex: Festa junina do clube' },
-    { nome: 'convidado', rotulo: 'Nome do convidado', obrigatorio: true },
-    { nome: 'responsavel', rotulo: `Responsável (${rotulos(p.usuario).pessoa})` },
-  ],
-  acoes: [
-    { rotulo: 'Confirmar', mostrar: c => c.status === 'convidado',
-      executar: async c => { await api.patch(`/convidados/${c.id}/status`, { status: 'confirmado' }); return 'Presença confirmada.'; } },
-    { rotulo: 'Registrar entrada', mostrar: c => c.status === 'confirmado',
-      executar: async c => { await api.patch(`/convidados/${c.id}/status`, { status: 'presente' }); return 'Entrada registrada.'; } },
-  ],
-  vazio: 'Nenhum convidado cadastrado.',
-}).iniciar();
+const PAGE_SCREEN = 's_convidados';
+
+function tagConvidado(s){
+  const map = {convidado:['tag-open','Convidado'], confirmado:['tag-progress','Confirmado'], presente:['tag-done','Presente']};
+  const [cls,label] = map[s] || ['tag-open', s];
+  return `<span class="tag ${cls}">${label}</span>`;
+}
+
+async function renderMain(){
+  const u = getUser();
+  const convidados = await api.get('/convidados?condominio_id=' + u.condominio_id);
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar">
+      <h2>Convidados de evento</h2>
+      <div class="actions"><button class="btn btn-primary" onclick="modalNovoConvidado()">+ Adicionar convidado</button></div>
+    </div>
+    <div class="helper-note">
+      Módulo <strong>exclusivo de clubes</strong> — controla quem entra em eventos do clube, algo que não
+      existe em condomínios residenciais ou comerciais.
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Evento</th><th>Convidado</th><th>Responsável</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${convidados.map(c => `
+            <tr>
+              <td>${c.evento}</td><td>${c.convidado}</td><td>${c.responsavel}</td>
+              <td>${tagConvidado(c.status)}</td>
+              <td class="row-actions">
+                ${c.status==='convidado' ? `<button class="btn btn-ghost btn-sm" onclick="mudarStatus(${c.id},'confirmado')">Confirmar</button>` : ''}
+                ${c.status==='confirmado' ? `<button class="btn btn-ghost btn-sm" onclick="mudarStatus(${c.id},'presente')">Registrar entrada</button>` : ''}
+              </td>
+            </tr>`).join('') || '<tr><td colspan="5"><div class="empty">Nenhum convidado cadastrado.</div></td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function modalNovoConvidado(){
+  openModal(`
+    <h3>Adicionar convidado</h3>
+    <div class="field"><label>Evento</label><input id="cv-evento" placeholder="Ex: Festa junina do clube"></div>
+    <div class="field"><label>Nome do convidado</label><input id="cv-nome"></div>
+    <div class="field"><label>Responsável (sócio/morador)</label><input id="cv-resp"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarConvidado()">Adicionar</button>
+    </div>
+  `);
+}
+async function salvarConvidado(){
+  const u = getUser();
+  const evento = document.getElementById('cv-evento').value.trim();
+  const convidado = document.getElementById('cv-nome').value.trim();
+  const responsavel = document.getElementById('cv-resp').value.trim();
+  if(!evento || !convidado){ toast('Preencha evento e convidado.'); return; }
+  try {
+    await api.post('/convidados', { condominio_id: u.condominio_id, evento, convidado, responsavel });
+    closeModal(); toast('Convidado adicionado.'); await renderMain();
+  } catch(e){ toast(e.message); }
+}
+async function mudarStatus(id, status){
+  try {
+    await api.patch('/convidados/' + id + '/status', { status });
+    toast('Status atualizado.'); await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

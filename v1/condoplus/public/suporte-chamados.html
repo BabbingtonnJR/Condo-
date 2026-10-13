@@ -8,37 +8,59 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-new CrudPage({
-  tela: 'su_chamados',
-  titulo: 'Fila de chamados técnicos',
-  nomeSingular: 'chamado',
-  rotuloNovo: 'Abrir chamado',
-  recurso: '/chamados',
-  colunas: [
-    { rotulo: 'Usuário', campo: 'usuario' },
-    { rotulo: 'Assunto', html: c => `${esc(c.assunto)}<div class="meta">aberto em ${fmt.dataHora(c.aberto_em)}</div>` },
-    { rotulo: 'Escalado', html: c => c.escalado ? '<span class="tag tag-late">Escalado</span>' : '—' },
-    { rotulo: 'Status', html: c => tag('solicitacao', c.status) },
-  ],
-  campos: [
-    { nome: 'usuario', rotulo: 'Usuário que relatou', obrigatorio: true },
-    { nome: 'assunto', rotulo: 'Assunto', obrigatorio: true },
-    { nome: 'status', rotulo: 'Status', tipo: 'selecao',
-      opcoes: [['aberto', 'Aberto'], ['progresso', 'Em andamento'], ['concluido', 'Concluído']] },
-  ],
-  acoes: [
-    { rotulo: 'Resolver', mostrar: c => c.status !== 'concluido',
-      executar: async c => { await api.patch(`/chamados/${c.id}/resolver`); return 'Chamado resolvido.'; } },
-    { rotulo: 'Escalar', mostrar: c => c.status !== 'concluido' && !c.escalado,
-      executar: async c => { await api.patch(`/chamados/${c.id}/escalar`); return 'Chamado escalado para o nível superior.'; } },
-  ],
-  descricao: c => c.assunto,
-  vazio: 'Nenhum chamado registrado.',
-}).iniciar();
+const PAGE_SCREEN = 'su_chamados';
+
+function tagStatus(s){
+  const map = {aberto:['tag-open','Aberto'], progresso:['tag-progress','Em andamento'], concluido:['tag-done','Concluído']};
+  const [cls,label] = map[s] || ['tag-open', s];
+  return `<span class="tag ${cls}">${label}</span>`;
+}
+
+async function renderMain(){
+  const chamados = await api.get('/chamados');
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Fila de chamados técnicos</h2></div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Usuário</th><th>Assunto</th><th>Escalado</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${chamados.map(c => `
+            <tr>
+              <td>${c.usuario}</td><td>${c.assunto}</td>
+              <td>${c.escalado ? '<span class="tag tag-late">Escalado</span>' : '—'}</td>
+              <td>${tagStatus(c.status)}</td>
+              <td class="row-actions">
+                ${c.status!=='concluido' ? `<button class="btn btn-ghost btn-sm" onclick="resolver(${c.id})">Resolver</button><button class="btn btn-ghost btn-sm" onclick="escalar(${c.id})">Escalar</button>` : ''}
+              </td>
+            </tr>`).join('') || '<tr><td colspan="5"><div class="empty">Nenhum chamado registrado.</div></td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+async function resolver(id){
+  try { await api.patch('/chamados/' + id + '/resolver'); toast('Chamado resolvido.'); await renderMain(); }
+  catch(e){ toast(e.message); }
+}
+async function escalar(id){
+  try { await api.patch('/chamados/' + id + '/escalar'); toast('Chamado escalonado para o nível superior.'); await renderMain(); }
+  catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

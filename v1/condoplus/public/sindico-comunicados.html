@@ -8,29 +8,59 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-// Integrante 1 — CRUD de comunicados (tabela: comunicados)
-new CrudPage({
-  tela: 's_comunicados',
-  titulo: 'Comunicados',
-  nomeSingular: 'comunicado',
-  rotuloNovo: 'Publicar comunicado',
-  recurso: '/comunicados',
-  filtros: p => ({ condominio_id: p.usuario.condominio_id }),
-  fixos:   p => ({ condominio_id: p.usuario.condominio_id }),
-  colunas: [
-    { rotulo: 'Comunicado', html: c => `<div style="font-weight:500;">${esc(c.titulo)}</div><div class="meta">${esc(c.corpo)}</div>` },
-    { rotulo: 'Publicado em', html: c => fmt.data(c.publicado_em) },
-  ],
-  campos: [
-    { nome: 'titulo', rotulo: 'Título', obrigatorio: true },
-    { nome: 'corpo', rotulo: 'Mensagem', tipo: 'areatexto' },
-  ],
-  vazio: 'Nenhum comunicado publicado.',
-}).iniciar();
+const PAGE_SCREEN = 's_comunicados';
+
+async function renderMain(){
+  const comunicados = await api.get('/comunicados');
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Comunicados</h2><div class="actions"><button class="btn btn-primary" onclick="modalComunicado()">+ Publicar comunicado</button></div></div>
+    <div class="panel">
+      ${comunicados.map(c => `
+        <div class="list-item">
+          <div><div style="font-weight:500;">${c.titulo}</div><div class="meta">${c.corpo || ''}</div></div>
+          <div class="meta">${new Date(c.publicado_em).toLocaleDateString('pt-BR')}</div>
+        </div>`).join('') || '<div class="empty">Nenhum comunicado publicado.</div>'}
+    </div>`;
+}
+
+function modalComunicado(){
+  openModal(`
+    <h3>Publicar comunicado</h3>
+    <p class="sub">Todos os moradores serão notificados automaticamente.</p>
+    <div class="field"><label>Título</label><input id="cc-titulo"></div>
+    <div class="field"><label>Mensagem</label><textarea id="cc-corpo" rows="3"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarComunicado()">Publicar</button>
+    </div>
+  `);
+}
+async function salvarComunicado(){
+  const titulo = document.getElementById('cc-titulo').value.trim();
+  const corpo = document.getElementById('cc-corpo').value.trim();
+  if(!titulo){ toast('Dê um título ao comunicado.'); return; }
+  try {
+    await api.post('/comunicados', { titulo, corpo });
+    closeModal();
+    toast('Comunicado publicado e moradores notificados.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

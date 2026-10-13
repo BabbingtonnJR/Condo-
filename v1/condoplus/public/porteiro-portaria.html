@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Portaria</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
+<script src="assets/common.js"></script>
+<script>
+const PAGE_SCREEN = 'p_portaria';
+window._pTab = window._pTab || 'encomenda';
+
+async function renderMain(){
+  const main = document.getElementById('main-content');
+  main.innerHTML = `<div class="loading">Carregando…</div>`;
+
+  if(window._pTab === 'visitante'){
+    const visitantes = await api.get('/visitantes');
+    main.innerHTML = `
+      <div class="topbar"><h2>Portaria</h2></div>
+      <div class="tabs">
+        <div class="tab" onclick="window._pTab='encomenda'; renderMain();">Encomendas</div>
+        <div class="tab active" onclick="window._pTab='visitante'; renderMain();">Visitantes</div>
+      </div>
+      <div class="panel">
+        <h3>Registrar visitante</h3>
+        <div class="grid-2">
+          <div class="field"><label>Nome do visitante</label><input id="v-nome" placeholder="Nome completo"></div>
+          <div class="field"><label>Unidade visitada</label><input id="v-unidade" placeholder="Ex: 204"></div>
+        </div>
+        <button class="btn btn-primary" onclick="registrarVisitante()">Registrar entrada</button>
+      </div>
+      <div class="panel">
+        <h3>Visitantes registrados</h3>
+        ${visitantes.map(v => `<div class="list-item"><div><div>${v.nome}</div><div class="meta">Unidade ${v.unidade}</div></div><div class="meta">${new Date(v.horario).toLocaleString('pt-BR')}</div></div>`).join('') || '<div class="empty">Nenhum visitante registrado ainda.</div>'}
+      </div>`;
+  } else {
+    const encomendas = await api.get('/encomendas');
+    main.innerHTML = `
+      <div class="topbar"><h2>Portaria</h2></div>
+      <div class="tabs">
+        <div class="tab active" onclick="window._pTab='encomenda'; renderMain();">Encomendas</div>
+        <div class="tab" onclick="window._pTab='visitante'; renderMain();">Visitantes</div>
+      </div>
+      <div class="panel">
+        <h3>Registrar encomenda</h3>
+        <div class="grid-2">
+          <div class="field"><label>Morador</label><input id="e-morador" placeholder="Nome do morador"></div>
+          <div class="field"><label>Unidade</label><input id="e-unidade" placeholder="Ex: 302"></div>
+        </div>
+        <button class="btn btn-primary" onclick="registrarEncomenda()">Registrar e notificar morador</button>
+      </div>
+      <div class="panel">
+        <h3>Encomendas registradas</h3>
+        ${encomendas.map(e => `
+          <div class="list-item">
+            <div><div>${e.morador} — unidade ${e.unidade}</div><div class="meta">${new Date(e.recebido_em).toLocaleString('pt-BR')}</div></div>
+            <div>${e.retirado ? '<span class="tag tag-done">Retirada</span>' : '<span class="tag tag-open">Aguardando</span>'}</div>
+          </div>`).join('') || '<div class="empty">Nenhuma encomenda registrada.</div>'}
+      </div>`;
+  }
+}
+
+async function registrarEncomenda(){
+  const morador = document.getElementById('e-morador').value.trim();
+  const unidade = document.getElementById('e-unidade').value.trim();
+  if(!morador || !unidade){ toast('Preencha morador e unidade.'); return; }
+  try {
+    await api.post('/encomendas', { morador, unidade });
+    toast('Encomenda registrada. Morador notificado automaticamente.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+async function registrarVisitante(){
+  const nome = document.getElementById('v-nome').value.trim();
+  const unidade = document.getElementById('v-unidade').value.trim();
+  if(!nome || !unidade){ toast('Preencha nome e unidade.'); return; }
+  try {
+    await api.post('/visitantes', { nome, unidade });
+    toast('Visitante registrado.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
+</script>
+</body>
+</html>

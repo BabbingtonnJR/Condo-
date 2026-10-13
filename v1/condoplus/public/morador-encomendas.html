@@ -8,28 +8,36 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-class EncomendasMorador extends BasePage {
-  titulo(){ return 'Minhas encomendas'; }
-  carregarDados(){
-    const u = this.usuario;
-    return api.get(`/encomendas?condominio_id=${u.condominio_id}&unidade=${encodeURIComponent(u.unidade)}`);
-  }
-  renderizarConteudo(encomendas){
-    return `<div class="panel">
+const PAGE_SCREEN = 'm_encomendas';
+
+async function renderMain(){
+  const u = getUser();
+  const encomendas = await api.get('/encomendas?unidade=' + encodeURIComponent(u.unidade));
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Minhas encomendas</h2></div>
+    <div class="panel">
       ${encomendas.map(e => `
         <div class="list-item">
-          <div><div style="font-weight:500;">${esc(e.descricao || 'Encomenda recebida na portaria')}</div>
-               <div class="meta">Registrada em ${fmt.dataHora(e.recebido_em)}</div></div>
-          <div>${tag('encomenda', e.retirado)}</div>
+          <div><div style="font-weight:500;">Encomenda recebida na portaria</div><div class="meta">Registrada ${new Date(e.recebido_em).toLocaleString('pt-BR')}</div></div>
+          <div>${e.retirado ? '<span class="tag tag-done">Retirada</span>' : '<span class="tag tag-open">Aguardando retirada</span>'}</div>
         </div>`).join('') || '<div class="empty"><span class="big">📦</span>Nenhuma encomenda registrada.</div>'}
     </div>`;
-  }
 }
-new EncomendasMorador('m_encomendas').iniciar();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

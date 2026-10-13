@@ -1,16 +1,14 @@
--- Condo+ — Schema do banco de dados (MySQL 8+ / MariaDB 10.6+)
+-- Condo+ — Schema do banco de dados (MySQL / MariaDB)
 -- Execute este arquivo antes do seed.sql
--- ATENÇÃO: o DROP abaixo apaga o banco anterior para recriá-lo do zero.
 
-DROP DATABASE IF EXISTS condoplus;
-CREATE DATABASE condoplus CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS condoplus CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE condoplus;
 
 -- ------------------------------------------------------------
 -- Condomínios (Administradora) — RF05
--- `tipo` e `modulos` são a base da VARIABILIDADE (Parte III):
--- o mesmo software atende clientes diferentes; o que muda é a
--- configuração de cada linha desta tabela.
+-- `tipo` e `modulos` são a base da ALTA VARIABILIDADE (Parte III):
+-- o mesmo software atende clientes diferentes sem instanciar nada
+-- do zero — o que muda é a configuração de cada linha desta tabela.
 -- ------------------------------------------------------------
 CREATE TABLE condominios (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -40,7 +38,9 @@ CREATE TABLE usuarios (
 );
 
 -- ------------------------------------------------------------
--- Moradores / colaboradores / sócios — CRUD (RF04)
+-- Moradores — CRUD de demonstração (RF04)
+-- Tabela dedicada (além do cadastro em `usuarios`) para deixar
+-- o CRUD do síndico simples e isolado, como pedido no enunciado.
 -- ------------------------------------------------------------
 CREATE TABLE moradores (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -101,9 +101,7 @@ CREATE TABLE financeiro (
   referencia VARCHAR(20) NOT NULL,
   valor DECIMAL(10,2) NOT NULL,
   vencimento DATE NOT NULL,
-  status ENUM('pendente','pago') NOT NULL DEFAULT 'pendente',
-  condominio_id INT NULL,
-  FOREIGN KEY (condominio_id) REFERENCES condominios(id) ON DELETE SET NULL
+  status ENUM('pendente','pago') NOT NULL DEFAULT 'pendente'
 );
 
 -- ------------------------------------------------------------
@@ -113,11 +111,9 @@ CREATE TABLE reservas (
   id INT AUTO_INCREMENT PRIMARY KEY,
   area VARCHAR(100) NOT NULL,
   data_reserva DATE NOT NULL,
-  hora VARCHAR(40) NOT NULL DEFAULT '',
+  hora VARCHAR(40) NOT NULL,
   morador VARCHAR(120) NOT NULL,
-  status ENUM('pendente','confirmada','cancelada') NOT NULL DEFAULT 'pendente',
-  condominio_id INT NULL,
-  FOREIGN KEY (condominio_id) REFERENCES condominios(id) ON DELETE SET NULL
+  status ENUM('pendente','confirmada','cancelada') NOT NULL DEFAULT 'pendente'
 );
 
 -- ------------------------------------------------------------
@@ -127,11 +123,8 @@ CREATE TABLE encomendas (
   id INT AUTO_INCREMENT PRIMARY KEY,
   morador VARCHAR(120) NOT NULL,
   unidade VARCHAR(20) NOT NULL,
-  descricao VARCHAR(150) NOT NULL DEFAULT '',
   recebido_em DATETIME DEFAULT CURRENT_TIMESTAMP,
-  retirado BOOLEAN NOT NULL DEFAULT FALSE,
-  condominio_id INT NULL,
-  FOREIGN KEY (condominio_id) REFERENCES condominios(id) ON DELETE SET NULL
+  retirado BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- ------------------------------------------------------------
@@ -140,11 +133,8 @@ CREATE TABLE encomendas (
 CREATE TABLE visitantes (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nome VARCHAR(120) NOT NULL,
-  documento VARCHAR(30) NULL,
   unidade VARCHAR(20) NOT NULL,
-  horario DATETIME DEFAULT CURRENT_TIMESTAMP,
-  condominio_id INT NULL,
-  FOREIGN KEY (condominio_id) REFERENCES condominios(id) ON DELETE SET NULL
+  horario DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ------------------------------------------------------------
@@ -161,27 +151,35 @@ CREATE TABLE chamados (
 
 -- ============================================================
 -- PARTE III — ALTA VARIABILIDADE
--- Tabelas de módulos exclusivos de um tipo de cliente.
+-- Tabelas de módulos exclusivos, que só existem/fazem sentido
+-- para um tipo específico de cliente (condominios.tipo).
 -- ============================================================
 
--- Estacionamento rotativo — EXCLUSIVO de condomínios comerciais
+-- ------------------------------------------------------------
+-- Estacionamento rotativo — módulo EXCLUSIVO de condomínios
+-- comerciais (prédios de escritório com vagas compartilhadas,
+-- ao contrário do residencial onde a vaga é fixa da unidade).
+-- ------------------------------------------------------------
 CREATE TABLE vagas_estacionamento (
   id INT AUTO_INCREMENT PRIMARY KEY,
   condominio_id INT NOT NULL,
   codigo VARCHAR(10) NOT NULL,          -- ex: "G-01"
   data_reserva DATE NOT NULL,
-  reservado_por VARCHAR(120) NULL,      -- NULL = vaga livre
+  reservado_por VARCHAR(120) NULL,      -- nome/empresa que reservou; NULL = livre
   criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (condominio_id) REFERENCES condominios(id) ON DELETE CASCADE
 );
 
--- Controle de convidados por evento — EXCLUSIVO de clubes
+-- ------------------------------------------------------------
+-- Controle de convidados por evento — módulo EXCLUSIVO de
+-- condomínios do tipo clube (não existe em residencial/comercial).
+-- ------------------------------------------------------------
 CREATE TABLE convidados_evento (
   id INT AUTO_INCREMENT PRIMARY KEY,
   condominio_id INT NOT NULL,
   evento VARCHAR(150) NOT NULL,
   convidado VARCHAR(120) NOT NULL,
-  responsavel VARCHAR(120) NOT NULL DEFAULT '',
+  responsavel VARCHAR(120) NOT NULL,    -- sócio/morador responsável pelo convite
   status ENUM('convidado','confirmado','presente') NOT NULL DEFAULT 'convidado',
   criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (condominio_id) REFERENCES condominios(id) ON DELETE CASCADE

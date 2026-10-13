@@ -8,33 +8,69 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-new CrudPage({
-  tela: 'm_solicitacoes',
-  titulo: 'Minhas solicitações',
-  nomeSingular: 'solicitação',
-  rotuloNovo: 'Nova solicitação',
-  recurso: '/solicitacoes',
-  filtros: p => ({ condominio_id: p.usuario.condominio_id, unidade: p.usuario.unidade }),
-  fixos:   p => ({ condominio_id: p.usuario.condominio_id, unidade: p.usuario.unidade }),
-  ajuda: 'Você pode editar ou excluir uma solicitação enquanto ela estiver <strong>aberta</strong>. Depois que o síndico começa a tratar, ela fica só para acompanhamento.',
-  colunas: [
-    { rotulo: 'Solicitação', campo: 'titulo' },
-    { rotulo: 'Categoria', campo: 'categoria' },
-    { rotulo: 'Aberta em', html: s => fmt.data(s.criado_em) },
-    { rotulo: 'Status', html: s => tag('solicitacao', s.status) },
-  ],
-  campos: [
-    { nome: 'categoria', rotulo: 'Categoria', tipo: 'selecao', opcoes: ['Manutenção', 'Ocorrência', 'Outro'] },
-    { nome: 'titulo', rotulo: 'O que precisa de atenção?', obrigatorio: true, placeholder: 'Ex: Torneira vazando' },
-  ],
-  podeEditar: s => s.status === 'aberto',
-  podeExcluir: s => s.status === 'aberto',
-  vazio: 'Nenhuma solicitação aberta.',
-}).iniciar();
+const PAGE_SCREEN = 'm_solicitacoes';
+
+function tagStatus(s){
+  const map = {aberto:['tag-open','Aberto'], progresso:['tag-progress','Em andamento'], concluido:['tag-done','Concluído']};
+  const [cls,label] = map[s] || ['tag-open', s];
+  return `<span class="tag ${cls}">${label}</span>`;
+}
+
+async function renderMain(){
+  const u = getUser();
+  const solicitacoes = await api.get('/solicitacoes?unidade=' + encodeURIComponent(u.unidade));
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Solicitações</h2><div class="actions"><button class="btn btn-primary" onclick="modalNovaSolicitacao()">+ Nova solicitação</button></div></div>
+    <div class="panel">
+      ${solicitacoes.map(s => `
+        <div class="list-item">
+          <div><div style="font-weight:500;">${s.titulo}</div><div class="meta">${s.categoria} · aberta em ${new Date(s.criado_em).toLocaleDateString('pt-BR')}</div></div>
+          <div>${tagStatus(s.status)}</div>
+        </div>`).join('') || '<div class="empty"><span class="big">📋</span>Nenhuma solicitação aberta.</div>'}
+    </div>`;
+}
+
+function modalNovaSolicitacao(){
+  openModal(`
+    <h3>Nova solicitação</h3>
+    <p class="sub">Descreva o que precisa de atenção na sua unidade.</p>
+    <div class="field"><label>Categoria</label>
+      <select id="ns-cat"><option>Manutenção</option><option>Ocorrência</option><option>Outro</option></select>
+    </div>
+    <div class="field"><label>Título</label><input id="ns-titulo" placeholder="Ex: Torneira vazando"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarSolicitacao()">Enviar</button>
+    </div>
+  `);
+}
+async function salvarSolicitacao(){
+  const u = getUser();
+  const titulo = document.getElementById('ns-titulo').value.trim();
+  const categoria = document.getElementById('ns-cat').value;
+  if(!titulo){ toast('Descreva a solicitação.'); return; }
+  try {
+    await api.post('/solicitacoes', { unidade: u.unidade, titulo, categoria });
+    closeModal();
+    toast('Solicitação enviada ao síndico.');
+    await renderMain();
+  } catch(e){ toast(e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>

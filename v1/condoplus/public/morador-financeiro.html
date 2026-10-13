@@ -8,29 +8,45 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main" id="main-content"><div class="loading">Carregando…</div></main>
+</div>
+<div class="modal-backdrop" id="modal-backdrop"><div class="modal" id="modal-body"></div></div>
+<div class="toast" id="toast"></div>
 <script src="assets/common.js"></script>
-<script src="assets/componentes.js"></script>
-<script src="assets/BasePage.js"></script>
 <script>
-class FinanceiroMorador extends BasePage {
-  titulo(){ return `Financeiro — ${labelUnidade(this.usuario)} ${this.usuario.unidade}`; }
-  carregarDados(){
-    const u = this.usuario;
-    return api.get(`/financeiro?condominio_id=${u.condominio_id}&unidade=${encodeURIComponent(u.unidade)}`);
-  }
-  renderizarConteudo(lancamentos){
-    return `<div class="panel"><div class="table-wrap"><table>
-      <thead><tr><th>Referência</th><th>Valor</th><th>Vencimento</th><th>Situação</th></tr></thead>
-      <tbody>
-        ${lancamentos.map(l => `<tr>
-            <td>${esc(l.referencia)}</td><td>${fmt.moeda(l.valor)}</td><td>${fmt.data(l.vencimento)}</td>
-            <td>${tag('lancamento', l.vencido ? 'vencido' : l.status)}</td>
-          </tr>`).join('') || '<tr><td colspan="4"><div class="empty">Nenhum lançamento encontrado.</div></td></tr>'}
-      </tbody>
-    </table></div></div>`;
-  }
+const PAGE_SCREEN = 'm_financeiro';
+
+function moeda(v){ return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:2}); }
+
+async function renderMain(){
+  const u = getUser();
+  const lancamentos = await api.get('/financeiro?unidade=' + encodeURIComponent(u.unidade));
+  document.getElementById('main-content').innerHTML = `
+    <div class="topbar"><h2>Financeiro — Unidade ${u.unidade}</h2></div>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Referência</th><th>Valor</th><th>Vencimento</th><th>Situação</th></tr></thead>
+        <tbody>
+          ${lancamentos.map(l => `
+            <tr>
+              <td>${l.referencia}</td>
+              <td>${moeda(l.valor)}</td>
+              <td>${new Date(l.vencimento).toLocaleDateString('pt-BR')}</td>
+              <td>${l.status === 'pago' ? '<span class="tag tag-done">Pago</span>' : '<span class="tag tag-open">Pendente</span>'}</td>
+            </tr>`).join('') || '<tr><td colspan="4"><div class="empty">Nenhum lançamento encontrado.</div></td></tr>'}
+        </tbody>
+      </table>
+    </div>`;
 }
-new FinanceiroMorador('m_financeiro').iniciar();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if(!requireLogin()) return;
+  renderSidebar();
+  try { await renderMain(); }
+  catch(e){ document.getElementById('main-content').innerHTML = `<div class="error-box">${e.message}</div>`; }
+});
 </script>
 </body>
 </html>
