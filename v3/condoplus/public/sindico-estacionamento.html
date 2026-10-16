@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Estacionamento rotativo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// Gabriel — estacionamento rotativo. só existe no comercial
+// é só config pra CrudPage do Marcel
+new CrudPage({
+  tela: 's_estacionamento',
+  titulo: 'Estacionamento rotativo',
+  subtitulo: () => `Vagas de hoje (${fmt.data(fmt.hoje())})`,
+  nomeSingular: 'vaga',
+  recurso: '/vagas',
+  // só pega o que é do meu condomínio
+  filtros: p => ({ condominio_id: p.usuario.condominio_id, data_reserva: fmt.hoje() }),
+  fixos:   p => ({ condominio_id: p.usuario.condominio_id, data_reserva: fmt.hoje() }),
+  ajuda: `Módulo <strong>exclusivo de condomínios comerciais</strong>: a vaga não pertence a uma sala fixa,
+    ela é reservada dia a dia por colaboradores e visitantes de empresas diferentes.`,
+  cabecalho: (vagas) => {
+    const livres = vagas.filter(v => !v.reservado_por).length;
+    return `<div class="grid-3">
+      <div class="panel stat"><div class="num">${vagas.length}</div><div class="lbl">Vagas cadastradas hoje</div></div>
+      <div class="panel stat"><div class="num">${livres}</div><div class="lbl">Vagas livres</div></div>
+      <div class="panel stat"><div class="num">${vagas.length - livres}</div><div class="lbl">Vagas ocupadas</div></div>
+    </div>`;
+  },
+  colunas: [  // o que aparece na tabela
+    { rotulo: 'Vaga', campo: 'codigo' },
+    { rotulo: 'Status', html: v => tag('vaga', v.reservado_por ? 'ocupada' : 'livre') },
+    { rotulo: 'Reservada por', html: v => esc(v.reservado_por || '—') },
+  ],
+  // campos do form (meu CampoFactory monta)
+  campos: [{ nome: 'codigo', rotulo: 'Código da vaga', obrigatorio: true, placeholder: 'Ex: G-05' }],
+  acoes: [  // botões a mais em cada linha
+    { rotulo: 'Reservar', mostrar: v => !v.reservado_por, tituloFormulario: 'Reservar vaga', rotuloBotao: 'Reservar',
+      campos: [{ nome: 'reservado_por', rotulo: 'Reservada por (colaborador ou empresa)', obrigatorio: true }],
+      executar: async (v, p, dados) => { await api.patch(`/vagas/${v.id}/reservar`, dados); return `Vaga ${v.codigo} reservada.`; } },
+    { rotulo: 'Liberar', mostrar: v => !!v.reservado_por,
+      executar: async v => { await api.patch(`/vagas/${v.id}/reservar`, { reservado_por: null }); return `Vaga ${v.codigo} liberada.`; } },
+  ],
+  vazio: 'Nenhuma vaga cadastrada para hoje.',
+}).iniciar();
+</script>
+</body>
+</html>

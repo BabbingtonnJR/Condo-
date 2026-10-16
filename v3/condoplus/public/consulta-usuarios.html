@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Consultar usuários</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/ConsultaPage.js"></script>
+<script>
+// Gabriel — CE08: consultar usuários por perfil e condomínio
+// entrada: perfil, condomínio, status | saída: nome, e-mail, perfil, condomínio, unidade, status
+// ALI: Usuário, Condomínio, Unidade (a senha nunca sai)
+new ConsultaPage({
+  tela: 'c_usuarios', consulta: 'usuarios', codigo: 'CE08',
+  titulo: 'Consultar usuários por perfil',
+  antesDeCarregar: async pg => { pg.condominios = await api.get('/condominios'); }, // pro select
+  entradas: pg => [
+    { nome: 'perfil', rotulo: 'Perfil', tipo: 'selecao', obrigatorio: true, opcoes: [['', 'Escolha…'], ['morador', 'Morador'], ['sindico', 'Síndico'], ['administradora', 'Administradora'], ['porteiro', 'Porteiro'], ['prestador', 'Prestador'], ['suporte', 'Suporte']] },
+    { nome: 'condominio_id', rotulo: 'Condomínio', tipo: 'selecao', opcoes: [['', 'Todos'], ...pg.condominios.map(c => [String(c.id), c.nome])] },
+    { nome: 'status', rotulo: 'Status', tipo: 'selecao', opcoes: [['', 'Todos'], ['ativo', 'Ativo'], ['inativo', 'Inativo']] },
+  ],
+  colunas: [
+    { rotulo: 'Nome', html: u => esc(u.nome) },
+    { rotulo: 'E-mail', html: u => esc(u.email) },
+    { rotulo: 'Perfil', html: u => esc(u.perfil) },
+    { rotulo: 'Condomínio', html: u => esc(u.condominio || '—') },
+    { rotulo: 'Unidade', html: u => esc(u.unidade || '—') },
+    { rotulo: 'Status', html: u => tag('ativo', u.status) },
+  ],
+}).iniciar();
+</script>
+</body>
+</html>

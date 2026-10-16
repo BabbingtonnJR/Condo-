@@ -1,0 +1,31 @@
+{
+  "name": "condoplus-core",
+  "version": "1.0.0",
+  "description": "Núcleo reutilizável do Condo+: banco (Singleton), repositório e controller genéricos (Template Method) e CRUD REST pronto para Express + MySQL.",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "lib/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": ["crud", "mysql", "express", "repository", "template-method", "singleton", "condoplus"],
+  "author": "Babbingtonn, André, Marcel e Gabriel",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.0"
+  },
+  "peerDependencies": {
+    "express": ">=4"
+  },
+  "peerDependenciesMeta": {
+    "express": { "optional": true }
+  }
+}

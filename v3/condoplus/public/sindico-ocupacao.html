@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Ocupação das áreas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/RelatorioPage.js"></script>
+<script>
+// Gabriel — SE04: ocupação das áreas comuns no mês (só aparece se o módulo de reservas tá ligado)
+// FTR: Reserva
+class TelaOcupacao extends RelatorioPage {
+  titulo(){ return 'Ocupação das áreas comuns'; }
+  renderizarConteudo(d){
+    const total = d.porArea.reduce((a, x) => a + x.totalReservas, 0);
+    const maisUsada = d.porArea.slice().sort((a, b) => b.taxaOcupacao - a.taxaOcupacao)[0];
+    return `<div class="filtros"><div class="field"><label for="f-mes">Mês</label>
+        <input type="month" id="f-mes" value="${esc(d.mes)}" onchange="pagina.filtrar('mes', this.value)"></div></div>`
+      + this.kpis([
+        [total, 'Reservas no mês', false],
+        [maisUsada ? esc(maisUsada.area) : '—', 'Área mais ocupada'],
+        [maisUsada ? fmt.pct(maisUsada.taxaOcupacao) : '—', 'Ocupação da área mais usada'],
+      ])
+      + this.tabela('Por área', [
+        { rotulo: 'Área', html: a => esc(a.area) },
+        { rotulo: 'Reservas', num: true, derivado: true, html: a => a.totalReservas },
+        { rotulo: 'Confirmadas', num: true, derivado: true, html: a => a.confirmadas },
+        { rotulo: 'Pendentes', num: true, derivado: true, html: a => a.pendentes },
+        { rotulo: 'Canceladas', num: true, derivado: true, html: a => a.canceladas },
+        { rotulo: 'Dias ocupados', num: true, derivado: true, html: a => `${a.diasOcupados}/${d.diasNoMes}` },
+        { rotulo: 'Ocupação', derivado: true, html: a => `<div style="display:flex;gap:8px;align-items:center;">${this.barra(a.taxaOcupacao)}<span>${fmt.pct(a.taxaOcupacao)}</span></div>` },
+        { rotulo: 'Horário de pico', derivado: true, html: a => esc(a.horarioPico || '—') },
+      ], d.porArea, { vazio: 'Nenhuma reserva nesse mês.' })
+      + this.rodape('Ocupação = dias com reserva (sem contar cancelada) ÷ dias do mês. Pico = horário de início mais comum.');
+  }
+}
+new TelaOcupacao('s_ocupacao', 'ocupacao').iniciar();
+</script>
+</body>
+</html>

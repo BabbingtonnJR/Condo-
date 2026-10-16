@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Consultar condomínios</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/ConsultaPage.js"></script>
+<script>
+// Gabriel — CE07: consultar condomínios por tipo e nome
+// entrada: tipo, nome | saída: nome, endereço, tipo, síndico, módulos | ALI: Condomínio, Usuário (síndico)
+const NOMES_MODULOS = { reservas_area_comum: 'Reservas', estacionamento_rotativo: 'Estacionamento', controle_convidados_evento: 'Convidados' };
+new ConsultaPage({
+  tela: 'c_condominios', consulta: 'condominios', codigo: 'CE07',
+  titulo: 'Consultar condomínios',
+  entradas: [
+    { nome: 'tipo', rotulo: 'Tipo', tipo: 'selecao', obrigatorio: true, opcoes: [['', 'Escolha…'], ['residencial', 'Residencial'], ['comercial', 'Comercial'], ['clube', 'Clube']] },
+    { nome: 'nome', rotulo: 'Nome contém', placeholder: 'ex.: Acácias' },
+  ],
+  colunas: [
+    { rotulo: 'Nome', html: c => esc(c.nome) },
+    { rotulo: 'Endereço', html: c => esc(c.endereco || '—') },
+    { rotulo: 'Tipo', html: c => `<span class="tag tag-progress">${esc(c.tipo)}</span>` },
+    { rotulo: 'Síndico', html: c => esc(c.sindico_nome || '—') },
+    { rotulo: 'Módulos ligados', html: c => Object.entries(c.modulos).filter(([, v]) => v).map(([k]) => `<span class="tag tag-done">${esc(NOMES_MODULOS[k] || k)}</span>`).join(' ') || '—' },
+  ],
+}).iniciar();
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Buscar comunicados</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/ConsultaPage.js"></script>
+<script>
+// Marcel — CE06: buscar comunicados por palavra e período (síndico e morador usam a mesma tela)
+// entrada: palavra, de, até | saída: título, texto, publicado em | ALI: Comunicado
+new ConsultaPage({
+  tela: 'c_comunicados', consulta: 'comunicados', codigo: 'CE06',
+  titulo: 'Buscar comunicados',
+  fixos: pg => ({ condominio_id: pg.usuario.condominio_id }),
+  entradas: [
+    { nome: 'palavra', rotulo: 'Palavra', obrigatorio: true, placeholder: 'ex.: água, elevador' },
+    { nome: 'de', rotulo: 'Publicado de', tipo: 'data' },
+    { nome: 'ate', rotulo: 'até', tipo: 'data' },
+  ],
+  colunas: [
+    { rotulo: 'Título', html: c => `<strong>${esc(c.titulo)}</strong>` },
+    { rotulo: 'Texto', html: c => esc(c.corpo || '') },
+    { rotulo: 'Publicado em', html: c => fmt.dataHora(c.publicado_em) },
+  ],
+}).iniciar();
+</script>
+</body>
+</html>

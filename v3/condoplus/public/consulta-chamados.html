@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Consultar chamados</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/ConsultaPage.js"></script>
+<script>
+// Marcel — CE05: consultar chamados por status
+// entrada: status, escalado, assunto | saída: assunto, usuário, status, escalado, aberto em | ALI: Chamado, Usuário (quem abriu)
+new ConsultaPage({
+  tela: 'c_chamados', consulta: 'chamados', codigo: 'CE05',
+  titulo: 'Consultar chamados por status',
+  entradas: [
+    { nome: 'status', rotulo: 'Status', tipo: 'selecao', obrigatorio: true, opcoes: [['', 'Escolha…'], ['aberto', 'Aberto'], ['progresso', 'Em andamento'], ['concluido', 'Concluído']] },
+    { nome: 'escalado', rotulo: 'Escalado', tipo: 'selecao', opcoes: [['', 'Tanto faz'], ['true', 'Sim'], ['false', 'Não']] },
+    { nome: 'assunto', rotulo: 'Assunto contém', placeholder: 'ex.: senha' },
+  ],
+  colunas: [
+    { rotulo: 'Assunto', html: c => esc(c.assunto) },
+    { rotulo: 'Usuário', html: c => esc(c.usuario) },
+    { rotulo: 'Status', html: c => tag('solicitacao', c.status) },
+    { rotulo: 'Escalado', html: c => c.escalado ? '<span class="tag tag-late">Sim</span>' : 'Não' },
+    { rotulo: 'Aberto em', html: c => fmt.dataHora(c.aberto_em) },
+  ],
+}).iniciar();
+</script>
+</body>
+</html>

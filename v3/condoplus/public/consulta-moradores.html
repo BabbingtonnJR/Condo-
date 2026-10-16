@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Consultar morador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/ConsultaPage.js"></script>
+<script>
+// Babbingtonn — CE01: consultar morador pela unidade
+// entrada: unidade, status | saída: nome, unidade, e-mail, status, cadastrado em | ALI: Usuário (morador), Unidade
+new ConsultaPage({
+  tela: 'c_moradores', consulta: 'morador-unidade', codigo: 'CE01',
+  titulo: pg => `Consultar ${rotulos(pg.usuario).pessoa} por ${labelUnidade(pg.usuario).toLowerCase()}`,
+  fixos: pg => ({ condominio_id: pg.usuario.condominio_id }), // vai junto sozinho, não é campo da tela
+  entradas: pg => [  // ENTRADA
+    { nome: 'unidade', rotulo: labelUnidade(pg.usuario), obrigatorio: true, placeholder: 'ex.: 302' },
+    { nome: 'status', rotulo: 'Status', tipo: 'selecao', opcoes: [['', 'Todos'], ['ativo', 'Ativo'], ['inativo', 'Inativo']] },
+  ],
+  colunas: pg => [  // SAÍDA
+    { rotulo: 'Nome', html: m => esc(m.nome) },
+    { rotulo: labelUnidade(pg.usuario), html: m => esc(m.unidade) },
+    { rotulo: 'E-mail', html: m => esc(m.email || '—') },
+    { rotulo: 'Status', html: m => tag('ativo', m.status) },
+    { rotulo: 'Cadastrado em', html: m => fmt.data(m.criado_em) },
+  ],
+}).iniciar();
+</script>
+</body>
+</html>

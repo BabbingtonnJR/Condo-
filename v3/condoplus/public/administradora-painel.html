@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Painel consolidado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/RelatorioPage.js"></script>
+<script>
+// Gabriel — SE06: painel consolidado da administradora (v4 trocou o painel antigo por esse)
+// FTR: Condomínio, Unidade, Usuário, Chamado, Solicitação, Lançamento Financeiro
+class TelaPainelAdministradora extends RelatorioPage {
+  titulo(){ return 'Painel consolidado da administradora'; }
+  filtros(){ return {}; } // administradora vê a carteira toda
+  renderizarConteudo(d){
+    const c = d.carteira;
+    return this.kpis([
+        [c.totalCondominios, 'Condomínios administrados', false],
+        [c.totalUnidades, 'Unidades sob gestão'],
+        [fmt.pct(c.inadimplenciaMedia), 'Inadimplência média'],
+        [fmt.moeda(c.totalEmAberto), 'Total vencido em aberto'],
+      ])
+      + this.tabela('Por condomínio', [
+        { rotulo: 'Condomínio', html: x => esc(x.condominio) },
+        { rotulo: 'Tipo', html: x => `<span class="tag tag-progress">${esc(x.tipo)}</span>` },
+        { rotulo: 'Unidades', num: true, html: x => x.unidades || '—' },
+        { rotulo: 'Moradores ativos', num: true, derivado: true, html: x => x.moradores },
+        { rotulo: 'Solicitações abertas', num: true, derivado: true, html: x => x.solicitacoesAbertas },
+        { rotulo: 'Chamados abertos', num: true, derivado: true, html: x => x.chamadosAbertos + (x.chamadosEscalados ? ` <span class="tag tag-late">${x.chamadosEscalados} escalado</span>` : '') },
+        { rotulo: 'Inadimplência', num: true, derivado: true, html: x => `<span class="tag ${x.taxaInadimplencia > 10 ? 'tag-late' : 'tag-done'}">${fmt.pct(x.taxaInadimplencia)}</span>` },
+        { rotulo: 'Vencido em aberto', num: true, derivado: true, html: x => fmt.moeda(x.totalEmAberto) },
+      ], d.porCondominio)
+      + this.rodape(`Usuários ativos na plataforma: ${c.totalUsuarios}. Clube sem nº de unidades usa os títulos cobrados como base da inadimplência.`);
+  }
+}
+new TelaPainelAdministradora('a_painel', 'painel-administradora').iniciar();
+</script>
+</body>
+</html>

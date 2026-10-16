@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Indicadores de solicitações</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/RelatorioPage.js"></script>
+<script>
+// Babbingtonn — SE03: indicadores das solicitações (por categoria e por prestador)
+// FTR: Solicitação, Usuário (prestador)
+class TelaIndicadores extends RelatorioPage {
+  titulo(){ return 'Indicadores de solicitações'; }
+  renderizarConteudo(d){
+    const r = d.resumo;
+    const abertas = d.porCategoria.reduce((a, c) => a + c.aberto + c.progresso, 0);
+    return this.kpis([
+        [r.total, 'Solicitações no total', false],
+        [abertas, 'Em aberto (aberto + andamento)'],
+        [fmt.pct(r.percentualResolvidas), 'Resolvidas'],
+      ])
+      + this.tabela('Por categoria', [
+        { rotulo: 'Categoria', html: c => esc(c.categoria) },
+        { rotulo: 'Abertas', num: true, derivado: true, html: c => c.aberto },
+        { rotulo: 'Em andamento', num: true, derivado: true, html: c => c.progresso },
+        { rotulo: 'Concluídas', num: true, derivado: true, html: c => c.concluido },
+        { rotulo: 'Idade média (em aberto)', num: true, derivado: true, html: c => c.idadeMediaDias === null ? '—' : `${String(c.idadeMediaDias).replace('.', ',')} dias` },
+        { rotulo: 'Mais antiga', num: true, derivado: true, html: c => c.idadeMaximaDias === null ? '—' : `<span class="tag ${c.idadeMaximaDias > 7 ? 'tag-late' : 'tag-open'}">${c.idadeMaximaDias} dias</span>` },
+      ], d.porCategoria, { vazio: 'Nenhuma solicitação registrada.' })
+      + this.tabela('Por prestador de serviço', [
+        { rotulo: 'Prestador', html: p => esc(p.prestador) },
+        { rotulo: 'Atribuídas', num: true, derivado: true, html: p => p.total },
+        { rotulo: 'Em aberto', num: true, derivado: true, html: p => p.emAberto },
+        { rotulo: 'Concluídas', num: true, derivado: true, html: p => p.concluidas },
+      ], d.porPrestador, { vazio: 'Nenhuma solicitação atribuída a prestador.' })
+      + this.rodape('Idade = dias desde a abertura, só das que ainda não foram concluídas.');
+  }
+}
+new TelaIndicadores('s_indicadores', 'solicitacoes').iniciar();
+</script>
+</body>
+</html>

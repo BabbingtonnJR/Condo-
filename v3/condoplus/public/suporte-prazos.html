@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Prazo dos chamados</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/RelatorioPage.js"></script>
+<script>
+// Marcel — SE05: prazo dos chamados (horas em aberto e se já venceu o SLA)
+// FTR: Chamado (só ele! se mostrar o condomínio ou quem abriu, referencia outro ALI, vira 2 FTR e muda o PF)
+class TelaPrazos extends RelatorioPage {
+  titulo(){ return 'Prazo dos chamados de suporte'; }
+  filtros(){ return {}; } // suporte vê de todos os condomínios
+  renderizarConteudo(d){
+    const r = d.resumo;
+    const opcoes = [24, 48, 72].map(h => `<option value="${h}" ${h === d.prazoHoras ? 'selected' : ''}>${h} horas</option>`).join('');
+    return `<div class="filtros"><div class="field"><label for="f-prazo">Prazo (SLA)</label>
+        <select id="f-prazo" onchange="pagina.filtrar('prazoHoras', this.value)">${opcoes}</select></div></div>`
+      + this.kpis([
+        [r.totalEmAberto, 'Chamados em aberto', false],
+        [r.totalVencidos, 'Fora do prazo'],
+        [fmt.pct(r.percentualVencidos), '% fora do prazo'],
+      ])
+      + this.tabela('Chamados não concluídos (mais antigos primeiro)', [
+        { rotulo: 'Assunto', html: c => esc(c.assunto) },
+        { rotulo: 'Aberto em', html: c => fmt.dataHora(c.aberto_em) },
+        { rotulo: 'Status', html: c => tag('solicitacao', c.status) + (c.escalado ? ' <span class="tag tag-late">Escalado</span>' : '') },
+        { rotulo: 'Horas em aberto', num: true, derivado: true, html: c => `${c.horasEmAberto} h` },
+        { rotulo: 'Situação', derivado: true, html: c => `<span class="tag ${c.situacao === 'Vencido' ? 'tag-late' : 'tag-done'}">${esc(c.situacao)}</span>` },
+      ], d.linhas, { vazio: 'Nenhum chamado em aberto.' })
+      + this.rodape(`Vencido = está aberto há mais de ${d.prazoHoras} horas.`);
+  }
+}
+new TelaPrazos('su_prazos', 'prazo-chamados').iniciar();
+</script>
+</body>
+</html>

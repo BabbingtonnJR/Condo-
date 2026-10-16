@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Inadimplência</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/RelatorioPage.js"></script>
+<script>
+// André — SE01: inadimplência por unidade (multa, juros e % calculados no back)
+// FTR: Lançamento Financeiro, Unidade, Usuário (morador)
+class TelaInadimplencia extends RelatorioPage {
+  titulo(){ return 'Inadimplência por ' + labelUnidade(this.usuario).toLowerCase(); }
+  renderizarConteudo(d){
+    const r = d.resumo, un = labelUnidade(this.usuario);
+    const total = `<tr class="total"><td colspan="4">Total</td><td class="num">${fmt.moeda(d.linhas.reduce((a, l) => a + l.valor, 0))}</td>
+      <td></td><td class="num">${fmt.moeda(d.linhas.reduce((a, l) => a + l.multa, 0))}</td>
+      <td class="num">${fmt.moeda(d.linhas.reduce((a, l) => a + l.juros, 0))}</td><td class="num">${fmt.moeda(r.totalInadimplente)}</td></tr>`;
+    return this.kpis([
+        [fmt.moeda(r.totalInadimplente), 'Total inadimplente (com multa e juros)'],
+        [`${r.unidadesInadimplentes}/${r.unidadesCondominio}`, `${un}s inadimplentes`],
+        [fmt.pct(r.percentualInadimplencia), 'Taxa de inadimplência'],
+      ])
+      + this.tabela('Boletos vencidos e não pagos', [
+        { rotulo: un, html: l => esc(l.unidade) },
+        { rotulo: (p => p[0].toUpperCase() + p.slice(1))(rotulos(this.usuario).pessoa), html: l => esc(l.morador) },
+        { rotulo: 'Competência', html: l => esc(l.referencia) },
+        { rotulo: 'Vencimento', html: l => fmt.data(l.vencimento) },
+        { rotulo: 'Valor original', num: true, html: l => fmt.moeda(l.valor) },
+        { rotulo: 'Dias de atraso', num: true, derivado: true, html: l => `<span class="tag ${l.diasAtraso > 30 ? 'tag-late' : 'tag-open'}">${l.diasAtraso} dias</span>` },
+        { rotulo: 'Multa 2%', num: true, derivado: true, html: l => fmt.moeda(l.multa) },
+        { rotulo: 'Juros', num: true, derivado: true, html: l => fmt.moeda(l.juros) },
+        { rotulo: 'Valor atualizado', num: true, derivado: true, html: l => `<strong>${fmt.moeda(l.atualizado)}</strong>` },
+      ], d.linhas, { vazio: 'Nenhum boleto vencido. Condomínio em dia!', total })
+      + this.rodape(d.regras);
+  }
+}
+new TelaInadimplencia('s_inadimplencia', 'inadimplencia').iniciar();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "exemplo-reuso",
+  "version": "1.0.0",
+  "description": "Outro projeto (uma biblioteca) reusando o pacote condoplus-core, sem copiar nenhum arquivo do Condo+",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "condoplus-core": "file:../pacotes/condoplus-core-1.0.0.tgz",
+    "express": "^4.19.2"
+  }
+}

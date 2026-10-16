@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Consultar boletos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/ConsultaPage.js"></script>
+<script>
+// André — CE03: consultar os boletos de uma unidade
+// entrada: unidade, status | saída: unidade, referência, valor, vencimento, status | ALI: Lançamento Financeiro, Unidade
+// status é o gravado (pendente/pago). se fosse mostrar "vencido" já seria cálculo -> aí é a SE01
+new ConsultaPage({
+  tela: 'c_boletos', consulta: 'boletos', codigo: 'CE03',
+  titulo: pg => `Consultar boletos por ${labelUnidade(pg.usuario).toLowerCase()}`,
+  fixos: pg => ({ condominio_id: pg.usuario.condominio_id }),
+  entradas: pg => [
+    { nome: 'unidade', rotulo: labelUnidade(pg.usuario), obrigatorio: true, placeholder: 'ex.: 204' },
+    { nome: 'status', rotulo: 'Status', tipo: 'selecao', opcoes: [['', 'Todos'], ['pendente', 'Pendente'], ['pago', 'Pago']] },
+  ],
+  colunas: pg => [
+    { rotulo: labelUnidade(pg.usuario), html: l => esc(l.unidade) },
+    { rotulo: 'Referência', html: l => esc(l.referencia) },
+    { rotulo: 'Valor', num: true, html: l => fmt.moeda(l.valor) },
+    { rotulo: 'Vencimento', html: l => fmt.data(l.vencimento) },
+    { rotulo: 'Status', html: l => tag('lancamento', l.status) },
+  ],
+}).iniciar();
+</script>
+</body>
+</html>

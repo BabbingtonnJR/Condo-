@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Consultar reservas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script src="assets/ConsultaPage.js"></script>
+<script>
+// André — CE04: consultar as reservas de um dia (só com módulo de reservas ligado)
+// entrada: data, área | saída: área, data, horário, morador, status | ALI: Reserva, Usuário (quem reservou)
+new ConsultaPage({
+  tela: 'c_reservas', consulta: 'reservas', codigo: 'CE04',
+  titulo: 'Consultar reservas do dia',
+  valoresIniciais: { data_reserva: fmt.hoje() },
+  fixos: pg => ({ condominio_id: pg.usuario.condominio_id }),
+  entradas: [
+    { nome: 'data_reserva', rotulo: 'Data', tipo: 'data', obrigatorio: true },
+    { nome: 'area', rotulo: 'Área', tipo: 'selecao', opcoes: [['', 'Todas'], 'Salão de festas', 'Churrasqueira', 'Quadra poliesportiva', 'Quadra de tênis'] },
+  ],
+  colunas: [
+    { rotulo: 'Área', html: r => esc(r.area) },
+    { rotulo: 'Data', html: r => fmt.data(r.data_reserva) },
+    { rotulo: 'Horário', html: r => esc(r.hora || '—') },
+    { rotulo: 'Reservado por', html: r => esc(r.morador || '—') },
+    { rotulo: 'Status', html: r => tag('reserva', r.status) },
+  ],
+}).iniciar();
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condo+ — Financeiro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="assets/common.js"></script>
+<script src="assets/componentes.js"></script>
+<script src="assets/BasePage.js"></script>
+<script>
+// André — morador vê os boletos da unidade dele
+// filha da BasePage do Marcel, só fiz o carregarDados e o renderizarConteudo
+class FinanceiroMorador extends BasePage {
+  titulo(){ return `Financeiro — ${labelUnidade(this.usuario)} ${this.usuario.unidade}`; }
+  async carregarDados(){  // pega os dados na API
+    const u = this.usuario;
+    const [lancamentos, demo] = await Promise.all([
+      api.get(`/financeiro?condominio_id=${u.condominio_id}&unidade=${encodeURIComponent(u.unidade)}`),
+      api.get(`/relatorios/demonstrativo?condominio_id=${u.condominio_id}`), // v4: SE02 resumido pro morador
+    ]);
+    return { lancamentos, demo };
+  }
+  renderizarConteudo({ lancamentos, demo }){  // monta o HTML da tela
+    const m = demo.mes;  // transparência: morador vê quanto o condomínio arrecadou no mês
+    const resumo = m ? `<div class="panel"><h3><span class="se-code">SE02</span>Prestação de contas — ${esc(m.competencia)}</h3>
+      <div class="grid-3">
+        <div class="stat"><div class="num">${fmt.moeda(m.totalEmitido)}<span class="derivado">*</span></div><div class="lbl">Emitido no condomínio</div></div>
+        <div class="stat"><div class="num">${fmt.moeda(m.totalArrecadado)}<span class="derivado">*</span></div><div class="lbl">Arrecadado</div></div>
+        <div class="stat"><div class="num">${fmt.pct(m.taxaArrecadacao)}<span class="derivado">*</span></div><div class="lbl">Taxa de arrecadação</div></div>
+      </div></div>` : '';
+    return resumo + `<div class="panel"><h3>Meus boletos</h3><div class="table-wrap"><table>
+      <thead><tr><th>Referência</th><th>Valor</th><th>Vencimento</th><th>Situação</th></tr></thead>
+      <tbody>
+        ${lancamentos.map(l => `<tr>
+            <td>${esc(l.referencia)}</td><td>${fmt.moeda(l.valor)}</td><td>${fmt.data(l.vencimento)}</td>
+            <td>${tag('lancamento', l.vencido ? 'vencido' : l.status)}</td>
+          </tr>`).join('') || '<tr><td colspan="4"><div class="empty">Nenhum lançamento encontrado.</div></td></tr>'}
+      </tbody>
+    </table></div></div>` + (m ? '<div class="rodape-relatorio"><span class="derivado">*</span> calculado pelo servidor na hora (dado derivado).</div>' : '');
+  }
+}
+new FinanceiroMorador('m_financeiro').iniciar();
+</script>
+</body>
+</html>
